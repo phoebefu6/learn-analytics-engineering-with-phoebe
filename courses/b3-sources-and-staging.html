@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 3 · Sources and staging - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 3 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 3 of 10</div>
+    <h1>Sources and <span class="accent">staging</span></h1>
+    <p class="sub">This is the discipline layer, and it is where most dbt projects are quietly won or lost. Eight raw tables get declared once in one yml file, tested at the boundary before any model runs, and then wrapped in exactly one staging model each: rename, recast, light cleaning, and no joins at all. The convention looks almost too simple to teach. What it buys is that a loader rename is a one-file edit, a bad batch fails before it reaches twelve marts, and every model above staging is readable by somebody who has never seen your source system.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-16 · Sources as the boundary</span>
+      <span class="a3" style="flex:6">16-42 · Staging: the four jobs, live</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The layer that makes every other layer readable</h2>
+    </div>
+    <p class="lede">Two conventions, both boring, both load-bearing. <strong>Sources</strong> mean a raw table name appears in exactly one file in the whole project, so the thing you do not control is quarantined to one place. <strong>Staging</strong> means one model per source table, doing four narrow jobs and no joins, so the mapping from what the loader gave you to what your project calls it is one to one and obvious.</p>
+    <p class="lede">Neither convention is a dbt feature. dbt would happily let you write <code>select * from raw.orders</code> in a mart, join four raw tables in a staging model, and call a column <code>dt</code>. The tool does not care. The convention exists because the alternative has been tried at scale, repeatedly, and it produces estates where nobody can safely rename anything. Today you build the version this project actually ships: 8 sources, 8 staging models, and the tests that fail fast at the boundary.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A sources yml you could write from memory, three tests you can defend at the boundary, the four staging jobs with the reason joins are forbidden, and a naming convention that carries meaning instead of just being consistent.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: SOURCES ============ -->
+  <section class="section" id="sources">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on sources, source tests and source freshness</span>
+      <h2>Sources: one place a raw table name appears <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">A source declaration is two things at once: a rename-proof indirection, and a place to hang tests on data you did not produce. Both matter, and the second one is the half people skip.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Eight raw tables declared once in a single sources yml file, reached by eight staging models through source(), with tests running at the boundary">
+        <style>
+          .s3T { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .s3H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .s3C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .s3M { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .s3N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .s3Arr { stroke: #D94E24; stroke-width: 2.5; fill: none; marker-end: url(#s3Ah); }
+        </style>
+        <defs>
+          <marker id="s3Ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#D94E24"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="22" width="230" height="34" rx="8" fill="#2B2B33"/>
+        <text class="s3T" x="42" y="44">raw · the loader's output</text>
+        <rect x="26" y="62" width="230" height="180" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="s3M" x="42" y="86">users</text>
+        <text class="s3M" x="42" y="106">merchants</text>
+        <text class="s3M" x="42" y="126">products</text>
+        <text class="s3M" x="42" y="146">carts</text>
+        <text class="s3M" x="42" y="166">cart_items</text>
+        <text class="s3M" x="42" y="186">orders</text>
+        <text class="s3M" x="42" y="206">order_items</text>
+        <text class="s3M" x="42" y="226">transactions</text>
+
+        <rect x="292" y="22" width="270" height="34" rx="8" fill="#D94E24"/>
+        <text class="s3T" x="308" y="44">_bazaar__sources.yml · one file</text>
+        <rect x="292" y="62" width="270" height="180" rx="6" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="s3M" x="308" y="86">sources:</text>
+        <text class="s3M" x="308" y="106">  - name: bazaar</text>
+        <text class="s3M" x="308" y="126">    schema: raw</text>
+        <text class="s3M" x="308" y="146">    tables: 8 declared</text>
+        <text class="s3C" x="308" y="176">the only place a raw</text>
+        <text class="s3C" x="308" y="196">table name is written</text>
+        <text class="s3C" x="308" y="216">loader renames one? edit</text>
+        <text class="s3C" x="308" y="234">this file, nothing else</text>
+
+        <rect x="598" y="22" width="256" height="34" rx="8" fill="#3F7F72"/>
+        <text class="s3T" x="614" y="44">8 staging models · source()</text>
+        <rect x="598" y="62" width="256" height="180" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="s3M" x="614" y="86">stg_bazaar__users</text>
+        <text class="s3M" x="614" y="106">stg_bazaar__merchants</text>
+        <text class="s3M" x="614" y="126">stg_bazaar__products</text>
+        <text class="s3M" x="614" y="146">stg_bazaar__carts</text>
+        <text class="s3M" x="614" y="166">stg_bazaar__cart_items</text>
+        <text class="s3M" x="614" y="186">stg_bazaar__orders</text>
+        <text class="s3M" x="614" y="206">stg_bazaar__order_items</text>
+        <text class="s3M" x="614" y="226">stg_bazaar__transactions</text>
+
+        <path class="s3Arr" d="M258,152 L288,152"/>
+        <path class="s3Arr" d="M564,152 L594,152"/>
+
+        <rect x="26" y="258" width="828" height="104" rx="9" fill="#E8F3F0"/>
+        <text class="s3H" x="46" y="282">The boundary is where you want to fail</text>
+        <text class="s3N" x="46" y="306">source tests (unique, not_null, relationships) run before any model is built</text>
+        <text class="s3N" x="46" y="326">a duplicate txn_id stops the build here, not twelve marts and a dashboard later</text>
+        <text class="s3N" x="46" y="346">freshness answers a different question - is the loader running - and needs loaded_at_field</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - eight tables, one declaration, tests at the door</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What one yml file actually buys you<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The declaration is short. <code>_bazaar__sources.yml</code> names one source called <code>bazaar</code>, points it at <code>schema: raw</code>, and lists the eight tables. From then on, every reference in the project is <code>{{ source('bazaar', 'orders') }}</code> and never <code>raw.orders</code>. Three consequences, in ascending order of how much they matter:</p>
+        <ul>
+          <li><strong>A loader rename is a one-file edit.</strong> Fivetran restructures a schema, someone renames <code>transactions</code> to <code>payment_attempts</code>, the warehouse team moves <code>raw</code> to <code>landing</code>. You change the yml. Every model keeps compiling, because no model ever knew the physical name.</li>
+          <li><strong>Sources become nodes in the graph.</strong> Once declared, a source appears in lineage, so "what depends on this raw table" is answerable by walking edges. That is why b4's graph has 32 nodes rather than 23 - sources are in it, and everything is downstream of one.</li>
+          <li><strong>You get somewhere to put tests and documentation about data you do not own.</strong> This is the real prize, and it is the subject of the next card.</li>
+        </ul>
+        <p>The naming convention for the file itself is worth copying: <code>_bazaar__sources.yml</code>, leading underscore so it sorts to the top of the folder, source name in the middle, double underscore as the separator. Its sibling <code>_bazaar__models.yml</code> holds the staging models' descriptions and tests. Two files, one obvious place to look for each.</p>
+        <div class="callout tip">
+          <strong>The rule, stated once</strong>
+          A raw table name written inside a model is always a bug, even when the query returns the right answer. It is a dependency the graph cannot see and a rename that will not be caught.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Tests at the boundary, and why they run first<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Source tests are ordinary dbt tests attached to a source column instead of a model column, and <code>dbt build</code> runs them before anything downstream is built. Three of them do most of the work in this project:</p>
+        <ul>
+          <li><strong><code>unique</code></strong> on <code>users.user_id</code>, <code>merchants.merchant_id</code>, <code>products.product_id</code>, <code>carts.cart_id</code>, <code>transactions.txn_id</code>, plus <code>users.email</code> and <code>transactions.psp_ref</code>. A duplicated primary key in a source is the single most destructive input a warehouse can receive, because it silently multiplies rows in every join above it.</li>
+          <li><strong><code>not_null</code></strong> on those same keys, with one deliberate exception: <code>transactions.psp_ref</code> is declared <code>unique</code> only, because the payment provider does not always return a reference on a failed attempt. A null key does not multiply rows, it loses them - which is worse than a duplicate, because a missing row does not look like an error, it looks like a slow week.</li>
+          <li><strong><code>relationships</code></strong> from <code>products.merchant_id</code> to <code>merchants.merchant_id</code>, and from <code>orders.user_id</code> to <code>users.user_id</code>. This is referential integrity the source system may or may not be enforcing, checked on the data you actually received rather than on the ERD somebody drew.</li>
+        </ul>
+        <p>Why at the boundary rather than on the staging models? Because the point of a test is to stop work as early as possible. A duplicate <code>txn_id</code> caught on the source costs one failing test and a skipped subtree. The same duplicate caught in a mart costs a rebuilt star schema, a wrong revenue number, and a conversation with somebody who already presented it. This project runs 100 data tests in total, and the ones at the boundary are the cheapest of them.</p>
+        <p>One deliberate asymmetry: <code>cart_items</code> and <code>order_items</code> have no source-level column tests. Their grain is a composite - cart plus product, order plus line - and there is no single column to declare unique. That check lives one layer up as a <code>unique_combination</code> test on the staging model, which is the right place for it. Session b7 takes the whole test suite apart.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Source freshness: the check that answers "is the loader even running"<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Every test above answers "is this data correct". Freshness answers a completely different and often more urgent question: "is this data <em>there</em>". A source can be perfectly valid and eleven days stale, and no <code>unique</code> or <code>not_null</code> test will ever notice.</p>
+        <p>You declare it on the source with a timestamp column dbt can look at:</p>
+        <ul>
+          <li><strong><code>loaded_at_field</code></strong> - the column that tells dbt when a row arrived. This is the requirement people trip on: freshness needs a load timestamp, and an OLTP <code>created_ts</code> is not the same thing. If your loader does not stamp arrival time, freshness cannot be computed and the honest fix is to ask the loader to add the column.</li>
+          <li><strong><code>warn_after</code> and <code>error_after</code></strong> - thresholds in hours or days. Warn when it is late, error when it is broken, and the two numbers are a business decision rather than a technical one.</li>
+          <li><strong><code>dbt source freshness</code></strong> - the command that checks them. Note that it is its own command: <code>dbt build</code> does not run freshness for you.</li>
+        </ul>
+        <p>This project does not enable freshness, and the reason is worth being straight about: the raw data is a fixed 90-day extract loaded by <code>python/load_raw.py</code>, so a freshness check would either always pass trivially or always fail. Teaching it against fake staleness would be theatre. What is real is the shape of the decision, which is why it is named here and why the threshold conversation belongs on your own project.</p>
+        <p>Freshness is also the seam where this course stops and two others start. Whether the loader ran is monitoring, which is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>. Why the loader is built the way it is, and how <code>raw</code> got populated at all, is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a>. dbt transforms what is already there and has no way to fetch a missing batch.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: STAGING ============ -->
+  <section class="section" id="staging">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers the community layering and naming conventions</span>
+      <h2>Staging: four jobs, and no joins <span class="tag concept">8 min live</span></h2>
+    </div>
+    <p class="lede">One model per source table. Same grain in, same grain out. Four jobs, and the fourth one is a prohibition. Every staging model in this project fits on one screen, and that is a design goal rather than a coincidence.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One raw orders row becomes one staged row: rename, recast, light cleaning, no joins, plus the boolean and pre-split measures staging earns">
+        <style>
+          .g3T { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .g3H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .g3C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .g3M { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .g3N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .g3B { font: 700 11.5px Inter, sans-serif; fill: #991B1B; }
+          .g3Arr { stroke: #F1855F; stroke-width: 2.5; fill: none; marker-end: url(#g3Ah); }
+        </style>
+        <defs>
+          <marker id="g3Ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#F1855F"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="22" width="240" height="34" rx="8" fill="#2B2B33"/>
+        <text class="g3T" x="42" y="44">raw.orders · 7 columns</text>
+        <rect x="26" y="62" width="240" height="186" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="g3M" x="42" y="86">order_id</text>
+        <text class="g3M" x="42" y="106">user_id</text>
+        <text class="g3M" x="42" y="126">cart_id</text>
+        <text class="g3M" x="42" y="146">order_ts</text>
+        <text class="g3M" x="42" y="166">status</text>
+        <text class="g3M" x="42" y="186">ship_country</text>
+        <text class="g3M" x="42" y="206">currency</text>
+        <text class="g3C" x="42" y="234">whatever the loader sent</text>
+
+        <rect x="300" y="22" width="280" height="34" rx="8" fill="#D94E24"/>
+        <text class="g3T" x="316" y="44">four jobs, nothing else</text>
+        <rect x="300" y="62" width="280" height="186" rx="6" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="g3M" x="316" y="86">1 rename  status -&gt; order_status</text>
+        <text class="g3M" x="316" y="106">2 recast  order_ts -&gt; ordered_at</text>
+        <text class="g3M" x="316" y="126">3 clean   coalesce(x, 'unknown')</text>
+        <text class="g3B" x="316" y="146">4 NO joins - not one, ever</text>
+        <text class="g3C" x="316" y="176">plus the two things staging</text>
+        <text class="g3C" x="316" y="192">genuinely earns:</text>
+        <text class="g3M" x="316" y="216">is_settled</text>
+        <text class="g3M" x="316" y="236">approved_amount / declined_amount</text>
+
+        <rect x="614" y="22" width="240" height="34" rx="8" fill="#3F7F72"/>
+        <text class="g3T" x="630" y="44">staged · 8 columns</text>
+        <rect x="614" y="62" width="240" height="186" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="g3M" x="630" y="86">order_id</text>
+        <text class="g3M" x="630" y="106">user_id</text>
+        <text class="g3M" x="630" y="126">cart_id</text>
+        <text class="g3M" x="630" y="146">ordered_at</text>
+        <text class="g3M" x="630" y="166">order_status</text>
+        <text class="g3M" x="630" y="186">ship_country</text>
+        <text class="g3M" x="630" y="206">currency</text>
+        <text class="g3M" x="630" y="226">is_settled</text>
+
+        <path class="g3Arr" d="M268,152 L296,152"/>
+        <path class="g3Arr" d="M582,152 L610,152"/>
+
+        <rect x="26" y="264" width="828" height="136" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="g3H" x="46" y="288">Why forbidding joins here is the whole trick</text>
+        <text class="g3N" x="46" y="312">a staging model is readable in ten seconds, so nobody is afraid to change it</text>
+        <text class="g3N" x="46" y="332">one model per source table keeps the map from raw to modeled one to one and obvious</text>
+        <text class="g3N" x="46" y="352">every join lives in intermediate or marts, where fan-out is expected and tested</text>
+        <text class="g3N" x="46" y="372">price_tier is modeled here anyway - a band the source lacks, defined once, low in the stack</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - same grain in, same grain out</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>The job</th><th>What it means</th><th>From this project</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Rename</b></td><td>give every column a name that carries meaning outside its source table, so a column read in a mart needs no context</td><td><code>status</code> becomes <code>order_status</code>; <code>category</code> becomes <code>merchant_category</code> in merchants and <code>product_category</code> in products - because two different things were both called category</td></tr>
+        <tr><td><b>2 · Recast</b></td><td>fix types once, at the edge, so no downstream model casts anything and no two models cast it differently</td><td><code>cast(order_ts as timestamp) as ordered_at</code>; <code>cast(joined_date as date) as joined_on</code>; <code>cast(is_guest as boolean) as is_guest</code> - the loader shipped that last one as an integer</td></tr>
+        <tr><td><b>3 · Light cleaning</b></td><td>nulls that would silently drop a group, whitespace, casing. Light means reversible and uncontroversial - not business logic</td><td><code>coalesce(decline_reason, 'none')</code> turns 994 nulls out of 1,060 payment attempts into a groupable value; <code>coalesce(city, 'unknown')</code> is defensive and currently changes nothing</td></tr>
+        <tr><td><b>4 · No joins</b></td><td>the prohibition. Same grain in, same grain out, every time. If you need another table, you need an intermediate model</td><td><code>stg_bazaar__order_items</code> keeps the <code>merchant_id</code> the source captured at time of sale rather than looking it up from products - which is also the correct answer for a fact grain</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Naming conventions that carry meaning<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Consistency is the low bar. The useful version is naming that tells you something you would otherwise have to look up:</p>
+        <ul>
+          <li><strong><code>stg_&lt;source&gt;__&lt;entity&gt;</code></strong> with a double underscore: <code>stg_bazaar__order_items</code>. The double underscore separates source from entity, which matters the day a second source system also has an <code>orders</code> table. <code>stg_bazaar__orders</code> and <code>stg_shopify__orders</code> coexist without argument.</li>
+          <li><strong><code>*_at</code> or <code>*_ts</code> for timestamps, <code>*_date</code> or <code>*_on</code> for dates.</strong> Here: <code>ordered_at</code>, <code>signed_up_at</code>, <code>added_at</code>, <code>attempted_at</code> are timestamps; <code>joined_on</code> and <code>launched_on</code> are dates. Reading a mart, you know whether a column has a time component without checking the schema - which is exactly the mistake that produces off-by-one-day reports.</li>
+          <li><strong><code>is_*</code> for booleans, and only for booleans.</strong> <code>is_settled</code>, <code>is_guest</code>, <code>is_approved</code>. Never <code>is_status</code>, never an <code>is_*</code> column holding <code>'Y'</code>.</li>
+          <li><strong>Meaning-carrying names over source-faithful ones.</strong> <code>joined_on</code> beats <code>joined_date</code> because it reads as a fact about a merchant. <code>order_status</code> beats <code>status</code> because <code>status</code> in a mart is a question rather than a column.</li>
+          <li><strong>One primary key name per entity, everywhere.</strong> <code>order_id</code> is <code>order_id</code> in every model that touches it. The moment it becomes <code>orderid</code> in one place, every join in the project needs a human to check it.</li>
+        </ul>
+        <p>Staging is also the only layer where you get this for free. Rename in staging and the whole project above it inherits the good name. Rename in a mart and you have two names for one thing, forever, plus a conversation about which one the dashboard uses.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The two things staging genuinely earns<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>"Rename, recast, clean, no joins" would make staging pure plumbing. Two additions earn their place, and both are about defining something once instead of everywhere.</p>
+        <ul>
+          <li><strong>A boolean defined once.</strong> <code>order_status in ('paid', 'refunded') as is_settled</code>. Which statuses count as money is a business rule, and the alternative to writing it here is writing it in every mart, every ad hoc query and every dashboard filter - where it will eventually be written differently. In this dataset that is 920 paid plus 37 refunded, so 957 settled orders out of 985, and every number in this course that says 957 traces back to this one line. A refunded order still represents a sale that happened, which is a decision made in <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a> and honoured here.</li>
+          <li><strong>Pre-split additive measures.</strong> In <code>stg_bazaar__transactions</code>: <code>case when status = 'approved' then amount else 0 end as approved_amount</code>, and the same for declined. Plus the flag versions, <code>is_approved</code> and <code>is_declined</code>, as 1 and 0. It looks redundant. It means every rate downstream has an additive numerator and an additive denominator, so a decline rate can be summed up from hour to day to month and stay correct.</li>
+        </ul>
+        <p>That second point is the one that saves a project. <strong>Never store a ratio in a mart.</strong> Store the parts and divide at read time, because a ratio cannot be aggregated: the average of daily decline rates is not the monthly decline rate unless every day had identical volume, and no day does. Pre-splitting at staging means no downstream model is ever tempted, because the additive columns are already sitting there. The 6.2% decline rate in this course is computed from 66 declines over 1,060 attempts every single time it appears.</p>
+        <div class="callout tip">
+          <strong>The test that keeps a derived column honest</strong>
+          <code>accepted_values</code> is the guard for any column built from a status. This project puts it on <code>txn_status</code> with approved, declined and refunded, and on <code>price_tier</code> and <code>cart_status</code>. Add the same test to <code>order_status</code> and the day the source invents <code>chargeback</code>, the build fails and somebody has to decide whether it is settled - instead of it quietly falling outside the boolean and reducing revenue for reasons nobody can find.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Modeled attributes: columns that do not exist in the source<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>price_tier</code> is in <code>stg_bazaar__products</code> and nowhere in <code>raw.products</code>. The source has <code>list_price</code>, a number. The business thinks in bands: budget, mid, premium. Somebody has to convert one into the other, and the only real question is where.</p>
+        <ul>
+          <li><strong>In the dashboard.</strong> Fastest to write, worst outcome. Three dashboards, three sets of thresholds, and a meeting where two people disagree about how many premium products exist. Nobody can find the definition because it is in a filter expression.</li>
+          <li><strong>In each mart that needs it.</strong> Better, still wrong. The rule is now in two or three models and will be updated in some of them.</li>
+          <li><strong>In staging, once.</strong> A three-branch <code>case</code> expression, one place, with an <code>accepted_values</code> test asserting the output is exactly budget, mid or premium. Every model above it inherits the definition, and changing the bands is one diff a reviewer can see.</li>
+        </ul>
+        <p>The principle generalises: <strong>define a derived attribute as low in the stack as it can correctly live.</strong> Low enough that everything above inherits it, and no lower than the layer that has all the information needed to compute it. <code>price_tier</code> needs only <code>list_price</code>, so staging can do it. Something that needs an order and a payment cannot be computed in staging at all, because staging is not allowed to join - so it belongs in intermediate, which is session b5.</p>
+        <p>Where staging must stop: anything that needs another table, anything that changes the grain, and anything genuinely contested. If two departments disagree about what "premium" means, no <code>case</code> statement fixes that, and putting one in staging just hides the disagreement under a column name. That is a governance conversation, and pretending otherwise is how a warehouse loses trust.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Raw against staged, side by side <span class="tag demo">★ 14 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">These editors run <strong>real DuckDB</strong> in your browser with this project already built, so <code>raw</code> and <code>main_staging</code> are both queryable and you can see exactly what the layer did. The first Run downloads the engine (about 8 MB, once), then everything is local.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Diff the columns.</strong> Seven in, eight out. Read which names changed, which type changed, and which column is new.</p></div>
+      <div class="step"><p><strong>Then diff the rows.</strong> One order per status, raw values beside staged values, with the boolean that did not exist upstream.</p></div>
+      <div class="step"><p><strong>Watch the cleaning happen.</strong> 994 nulls at the boundary, zero after staging, and a value you can group by.</p></div>
+      <div class="step"><p><strong>Finally, run the source tests by hand.</strong> These are the same checks <code>dbt build</code> runs before any model exists - written as plain SQL so you can see there is no magic.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Seven columns in, eight out. Renames on positions 4 and 5, a recast timestamp, and is_settled appearing from nowhere.">
+      <pre class="sql-src">SELECT 'raw.orders' AS relation, ordinal_position AS pos, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'raw' AND table_name = 'orders'
+UNION ALL
+SELECT 'main_staging.stg_bazaar__orders', ordinal_position, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'main_staging' AND table_name = 'stg_bazaar__orders'
+ORDER BY relation DESC, pos;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="One order per status. paid and refunded are both settled; payment_failed is not. The rule lives in one line of one model.">
+      <pre class="sql-src">SELECT r.order_id,
+       r.status       AS raw_status,
+       r.order_ts     AS raw_order_ts,
+       s.order_status AS staged_order_status,
+       s.ordered_at   AS staged_ordered_at,
+       s.is_settled
+FROM raw.orders r
+JOIN main_staging.stg_bazaar__orders s USING (order_id)
+WHERE r.order_id IN (SELECT min(order_id) FROM raw.orders GROUP BY status)
+ORDER BY s.is_settled DESC, r.order_id;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="994 nulls out of 1,060 at the boundary, zero after staging. That is job 3, light cleaning, and it is why 'none' can be grouped.">
+      <pre class="sql-src">SELECT 'raw.transactions.decline_reason'              AS column_at_the_boundary,
+       count(*) FILTER (WHERE decline_reason IS NULL) AS null_rows,
+       count(*)                                       AS rows_total
+FROM raw.transactions
+UNION ALL
+SELECT 'stg_bazaar__transactions.decline_reason',
+       count(*) FILTER (WHERE decline_reason IS NULL),
+       count(*)
+FROM main_staging.stg_bazaar__transactions;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Four zeros. This is what a source test is: a query that must return no rows, run before any model is built.">
+      <pre class="sql-src">SELECT 'unique · raw.transactions.txn_id' AS test_at_the_boundary,
+       (SELECT count(*) FROM (SELECT txn_id FROM raw.transactions
+                              GROUP BY txn_id HAVING count(*) > 1)) AS failing_rows
+UNION ALL
+SELECT 'unique · raw.users.email',
+       (SELECT count(*) FROM (SELECT email FROM raw.users
+                              GROUP BY email HAVING count(*) > 1))
+UNION ALL
+SELECT 'not_null · raw.orders.user_id',
+       (SELECT count(*) FROM raw.orders WHERE user_id IS NULL)
+UNION ALL
+SELECT 'relationships · raw.products.merchant_id to raw.merchants',
+       (SELECT count(*) FROM raw.products p
+         LEFT JOIN raw.merchants m USING (merchant_id)
+        WHERE m.merchant_id IS NULL);</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The last box is the honest demystification of dbt testing.</strong> A generic test is a query that must return zero rows, and dbt's contribution is not the SQL - it is that the query is declared next to the column in four words of yml, runs on every build, and stops the graph when it fails. Which is also why "we have tests" and "our tests run" are completely different claims: this project's 100 tests are one line each in a yml file, and the reason they mean anything is that <code>PASS=121 ERROR=0</code> is the line CI reads. A test suite nobody runs is documentation of good intentions.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: the two things staging earned <span class="tag demo">★ 8 min · build your own</span></h2>
+    </div>
+    <p class="lede">Two queries against the staging layer, then one question about your own source system that no query can answer for you.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Pre-split measures, and the rate you never store<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="1,060 attempts, 957 approvals, 66 declines, 6.2% decline rate, and 111,906.48 approved - the same settled revenue the order lines report.">
+          <pre class="sql-src">SELECT count(*)                                     AS attempts,
+       sum(is_approved)                              AS approvals,
+       sum(is_declined)                              AS declines,
+       round(100.0 * sum(is_declined) / count(*), 1) AS decline_rate_pct,
+       round(sum(approved_amount), 2)                AS approved_amount,
+       round(sum(declined_amount), 2)                AS declined_amount
+FROM main_staging.stg_bazaar__transactions;</pre>
+        </div>
+        <p>Every column after the first two is additive, which is the whole point. Add a <code>GROUP BY date_trunc('day', attempted_at)</code> and the daily rates are correct; sum those days back up and the monthly rate is still correct, because you are re-dividing sums rather than averaging averages. Then notice the last two numbers: approved payments total 111,906.48, which is exactly the settled net revenue the order lines produce. Two independent paths through the warehouse agreeing to the cent is what a reconciliation test looks like, and this project has one as a singular test.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · A column the source does not have<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="18 budget, 33 mid, 9 premium - and zero columns named price_tier anywhere in the source. The band is modeled, once, in staging.">
+          <pre class="sql-src">SELECT s.price_tier,
+       count(*)                    AS products,
+       round(min(s.list_price), 2) AS cheapest,
+       round(max(s.list_price), 2) AS dearest,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'raw' AND table_name = 'products'
+           AND column_name  = 'price_tier') AS price_tier_columns_in_the_source
+FROM main_staging.stg_bazaar__products s
+GROUP BY 1
+ORDER BY cheapest;</pre>
+        </div>
+        <p>Now edit the thresholds in your head: move the premium boundary from 80 to 120 and nine products become mid. In this project that is one <code>case</code> expression in one model and every mart follows. In a project where the bands live in three dashboards, it is three tickets and one of them gets missed.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Audit your own boundary<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. Five questions about the source system you actually have. The answers are usually uncomfortable, which is what makes them worth writing down before b4.</p>
+        <ul>
+          <li><strong>How many places in your estate is a raw table name written?</strong> If the answer is more than one file, a loader rename is currently an archaeology project.</li>
+          <li><strong>Which source columns would you bet money are unique and not null?</strong> Those are your first source tests. The ones you would not bet on are more interesting, because your models are probably already assuming them.</li>
+          <li><strong>Does your loader stamp an arrival time?</strong> If not, freshness is not available to you, and the fix is a conversation with whoever owns extraction rather than anything you can write in dbt.</li>
+          <li><strong>Is there a business rule written in more than one of your models?</strong> A settled flag, an active-customer definition, a tier band. That rule wants to be one column in one staging model.</li>
+          <li><strong>Is any ratio stored in a table anywhere?</strong> A conversion rate, an approval rate, a margin percentage. Find its numerator and denominator and store those instead, before somebody averages it.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>Break a source on purpose: change <code>schema: raw</code> to <code>schema: landing</code> in <code>_bazaar__sources.yml</code> and run <code>dbt build</code>. Read how it fails, then fix it in that one line and confirm no model needed touching.</li>
+      <li>Add a source test that should fail: put <code>unique</code> on <code>orders.user_id</code>, which is a foreign key rather than a key. Watch the build stop at the boundary and read which models get SKIPped.</li>
+      <li>Write the ninth staging model. Pick any table in your own warehouse, do exactly the four jobs, and stop yourself the moment you want to join something. That urge is the intermediate layer asking to exist, and it is session b5.</li>
+      <li>Grep your own project for a business rule written twice - a settled flag, an active-user definition, a tier band. Move it into one staging model and count how many models get shorter.</li>
+      <li>List your sources and, for each, whether it has a load timestamp. Bring that list to b7, where the same discipline gets applied to the whole 100-test suite.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - sources, <code>source()</code>, declaring raw tables once</span><span class="note">Part 1 · this project's 8 tables in one yml, read line by line</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - source tests (<code>unique</code>, <code>not_null</code>, <code>relationships</code>, <code>accepted_values</code>)</span><span class="note">Part 1 + Demo 1 · each one also written out as plain SQL</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The community layering and naming conventions - one model per source table, four jobs, no joins</span><span class="note">Part 2 · all 8 staging models of this project</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">dbt documentation - source freshness, <code>loaded_at_field</code>, warn_after and error_after</span><span class="note">Named with the requirement stated · not enabled here, because a fixed 90-day extract would make it theatre</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - additivity, and why a ratio is never stored</span><span class="note">Part 2 · the model reasoning belongs to <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Monitoring the loader, and getting data into <code>raw</code> at all</span><span class="note">Out of scope by design · monitoring is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>, extraction is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Why declare all eight raw tables in one sources yml instead of referencing them where they are needed?</p>
+      <button class="qopt" type="button">A · dbt requires a sources file before it will build any model</button>
+      <button class="qopt" type="button">B · So a raw table name appears exactly once - a loader rename is a one-file edit, and the sources become nodes in the lineage graph</button>
+      <button class="qopt" type="button">C · Because a source declaration makes queries against raw tables faster</button>
+      <p class="qwhy">dbt would happily let you write <code>raw.orders</code> in a mart. The declaration quarantines the thing you do not control to one file, puts sources in the graph so "what depends on this raw table" is answerable, and gives you somewhere to hang tests on data you did not produce.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · Staging models in this project do four things. Which is the prohibition, and why does it matter?</p>
+      <button class="qopt" type="button">A · No aggregation - because staging must stay at row level</button>
+      <button class="qopt" type="button">B · No renaming - because column names should match the source</button>
+      <button class="qopt" type="button">C · No joins - so grain in equals grain out, each model stays readable in ten seconds, and every fan-out risk sits in intermediate or marts where it is expected and tested</button>
+      <p class="qwhy">Renaming and recasting are two of the four jobs, so they are required rather than forbidden. The prohibition is joins, and it is what keeps the map from raw to modeled one to one. The moment you want to join, you want an intermediate model, which is session b5.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Your marts need an approval rate per merchant per day. What belongs in the staging model?</p>
+      <button class="qopt" type="button">A · Pre-split additive measures - approved_amount, declined_amount, is_approved, is_declined - so every rate downstream has an additive numerator and denominator</button>
+      <button class="qopt" type="button">B · The approval rate itself, so it is defined in exactly one place</button>
+      <button class="qopt" type="button">C · Nothing - rates are a mart concern and staging should only rename and recast</button>
+      <p class="qwhy">A ratio cannot be aggregated: the average of daily rates is not the period rate unless every day had identical volume. Store the parts, divide at read time. Pre-splitting in staging means no downstream model is ever tempted, and this project's 6.2% decline rate is recomputed from 66 over 1,060 every time it appears.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 3 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Sources</b><span>8 raw tables in one yml. The only place a raw table name is written.</span></div>
+      <div class="cheat-item"><b>Source tests</b><span>unique, not_null, relationships - run before any model, so failure is cheap.</span></div>
+      <div class="cheat-item"><b>Freshness</b><span>Answers "is the loader running". Needs loaded_at_field, and its own command.</span></div>
+      <div class="cheat-item"><b>One per table</b><span>8 sources, 8 staging models. Grain in equals grain out, every time.</span></div>
+      <div class="cheat-item"><b>The four jobs</b><span>Rename · recast · light cleaning · no joins. Nothing else belongs here.</span></div>
+      <div class="cheat-item"><b>Naming</b><span>stg_source__entity · *_at for timestamps, *_on for dates · is_* only for booleans.</span></div>
+      <div class="cheat-item"><b>Defined once</b><span>is_settled gives 957 settled orders. One line, one definition, whole project.</span></div>
+      <div class="cheat-item"><b>Never a ratio</b><span>Pre-split approved_amount and declined_amount. Divide at read time. Next: b4.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 3 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b2-project-config.html">← Previous: The project config</a> &nbsp;·&nbsp; <a href="b4-ref-and-the-dag.html">Next: ref() and the DAG →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

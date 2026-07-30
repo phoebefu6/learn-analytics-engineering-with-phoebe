@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 5 · The team shape - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 5 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 5 of 6</div>
+    <h1>The team <span class="accent">shape</span></h1>
+    <p class="sub">Session a4 decided what to fund. This one decides who runs it, and it is the session where the tooling decision either pays off or quietly does not. Three roles own three layers of the same stack. One mechanism, review, is the entire cultural precondition for models-as-code: a team that will not review gets every cost of the tooling and none of the benefit. And there are exactly two ways to get the org design wrong, both of which look reasonable from the inside.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Frame the session</span>
+      <span class="a2" style="flex:3">3-16 · Three roles, three layers</span>
+      <span class="a3" style="flex:2">16-25 · Review, and the two failure shapes</span>
+      <span class="a4" style="flex:4">25-45 · Draw your ownership map</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Why org design is the second half of the tooling decision</h2>
+    </div>
+    <p class="lede">You can buy the best transformation layer available and get nothing from it. It happens routinely, and the mechanism is always the same: the tool assumes changes are proposed and then reviewed by somebody else, and the team continues to work the way it always did, where changes are made and then announced. The tool cannot tell the difference. Your stakeholders can, about six weeks later.</p>
+    <p class="lede">So this session is about three things a leader actually controls. Who owns which layer, stated explicitly rather than assumed. Who reviews whose work, named rather than implied. And where the boundary sits between a central team and the domains, which is the choice that determines whether you get one definition of revenue or five.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A one-page ownership map you can fill in during your next team meeting, the argument for review stated in terms your engineers already accept, both failure shapes named so you can spot yours early, a hiring signal that is genuinely diagnostic, and the handoffs written as artifacts instead of meetings.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: THREE ROLES ============ -->
+  <section class="section" id="roles">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the community layering conventions and software-engineering practice applied to SQL</span>
+      <h2>Three roles, three layers <span class="tag concept">13 min live</span></h2>
+    </div>
+    <p class="lede">Session a1 argued that the analytics engineer role appeared because a gap opened between the person who lands data and the person who asks questions of it. That gap has an exact shape, and once you see it the division of labour is almost mechanical: each role owns a contiguous slice of the same stack, and the slice boundaries are where the handoffs go.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three roles and the layer each one owns, with the small-team caveat">
+        <style>
+          .rH { font: 700 13px Inter, sans-serif; fill: #22222A; }
+          .rT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .rS { font: 600 10.5px Inter, sans-serif; fill: #F6C3B0; }
+          .rSg { font: 600 10.5px Inter, sans-serif; fill: #E8F3F0; }
+          .rB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .rC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .rN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <text class="rH" x="26" y="34">One stack, three contiguous slices. The slice boundaries are the handoffs.</text>
+
+        <rect x="26" y="50" width="228" height="76" rx="8" fill="#2B2B33"/>
+        <text class="rT" x="42" y="80">Data engineer</text>
+        <text class="rS" x="42" y="100">owns: sources landing</text>
+        <text class="rS" x="42" y="116">reliably and on time</text>
+        <rect x="268" y="50" width="586" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="rB" x="282" y="76">Extraction, loading, freshness, schema change from the systems of record.</text>
+        <text class="rC" x="282" y="96">Success looks like: raw tables present, complete, on schedule, and a warning sent</text>
+        <text class="rC" x="282" y="114">downstream before an upstream schema change is found in a broken chart.</text>
+
+        <rect x="26" y="138" width="228" height="76" rx="8" fill="#D94E24"/>
+        <text class="rT" x="42" y="168">Analytics engineer</text>
+        <text class="rS" x="42" y="188">owns: staging through</text>
+        <text class="rS" x="42" y="204">marts, and the definitions</text>
+        <rect x="268" y="138" width="586" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="rB" x="282" y="164">Every model between the raw table and the thing a person queries. Also the tests.</text>
+        <text class="rC" x="282" y="184">Success looks like: one place where revenue is defined, a test suite stating what</text>
+        <text class="rC" x="282" y="202">must stay true, and analysts who never have to ask what a column means.</text>
+
+        <rect x="26" y="226" width="228" height="76" rx="8" fill="#3F7F72"/>
+        <text class="rT" x="42" y="256">Analyst</text>
+        <text class="rSg" x="42" y="276">owns: the questions,</text>
+        <text class="rSg" x="42" y="292">and the last mile</text>
+        <rect x="268" y="226" width="586" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="rB" x="282" y="252">Exploration, the analysis nobody has done before, the dashboard, the recommendation.</text>
+        <text class="rC" x="282" y="272">Success looks like: time on the question rather than on assembling inputs, plus a</text>
+        <text class="rC" x="282" y="290">standing habit of pushing anything reused twice back down into a model.</text>
+
+        <rect x="26" y="320" width="828" height="96" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="rB" x="46" y="344">In a small team, one person wears all three. That is fine.</text>
+        <text class="rN" x="46" y="366">What is not fine is leaving it implied. Write down which layer she is wearing which hat for, because</text>
+        <text class="rN" x="46" y="386">the roles have different standards and the same person will otherwise apply the analyst standard</text>
+        <text class="rN" x="46" y="406">to a shared definition. Explicit ownership scales down to one person. Implied ownership does not.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three slices of one stack</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Role</th><th>Layer owned</th><th>Artifact handed over</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Data engineer</strong></td>
+          <td>Everything up to and including the raw landed tables: extraction, loading, freshness, and notice of upstream schema change.</td>
+          <td>A declared set of source tables with an agreed freshness expectation, plus a written heads-up when a source changes shape. Not a meeting: a change to the source declaration that the next build sees.</td>
+        </tr>
+        <tr>
+          <td><strong>Analytics engineer</strong></td>
+          <td>Staging through marts. The layering, the joins, the grain, the shared definitions, and the test suite that defends them.</td>
+          <td>Queryable marts with column descriptions attached, a test suite that states what must remain true, and generated documentation an analyst can read without asking anybody. Session a6 is about why that documentation is trustworthy.</td>
+        </tr>
+        <tr>
+          <td><strong>Analyst</strong></td>
+          <td>The question, the exploration, the analysis, the dashboard, the recommendation to the business.</td>
+          <td>Two things flowing back down: a named request when a needed field does not exist, and any piece of logic they have now written twice, which is a model waiting to be created.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The one-person team, and why explicit still matters<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Most teams reading this have one person doing all three jobs, and there is nothing wrong with that. The three roles are three sets of standards, not three headcount requirements. The problem is not the overlap, it is the invisibility of the overlap.</p>
+        <p>When the same person lands the data, models it and analyses it, the internal handoffs disappear, and with them the moment where somebody checks. She adds a column to a mart for one dashboard, because as the analyst she needs it today. As the analytics engineer she would have asked whether that column belongs at this grain and whether anything else will now depend on it. Both instincts are hers, and the second one loses, because there was no point at which the hats were separated.</p>
+        <p>The fix is cheap: write down, on one page, which layer she owns in which capacity, and what standard applies to each. When she is working on a shared definition, that is analytics-engineering work and it gets reviewed even if the reviewer is only a colleague reading a diff. When she is exploring, it is analyst work and it does not. Naming the layer is what lets one person hold two standards.</p>
+        <div class="callout tip">
+          <strong>The test for whether ownership is explicit</strong>
+          Point at any layer of your stack and ask the room who owns it. If two people answer, or if the answer starts with "well, mostly", it is implied. Implied ownership is fine right up until the first disagreement, at which point it is the disagreement.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Handoffs as artifacts, not meetings<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The fastest way to tell whether a data team's structure is working is to ask what moves between the roles. If the answer is meetings, the structure is not working, however good the meetings are, because a meeting leaves nothing behind that the next person can read.</p>
+        <ul>
+          <li><strong>Data engineer to analytics engineer:</strong> a declared source with an agreed freshness expectation. Written down where the transformation layer can see it, so the whole estate has exactly one place where a raw table name appears.</li>
+          <li><strong>Analytics engineer to analyst:</strong> a mart with described columns and a test suite. The description is the handoff. If an analyst has to ask what a column means, the handoff did not happen, it was just scheduled.</li>
+          <li><strong>Analyst back to analytics engineer:</strong> a written request naming the field that does not exist, or a piece of logic they have now written twice. The second one is the important one and it is almost never captured.</li>
+          <li><strong>Everyone to everyone:</strong> the review. A proposed change that somebody else reads before it ships, which is the next part of this session.</li>
+        </ul>
+        <p>Notice that all four are things, not conversations. You can still have the conversations. But a structure held together only by conversation degrades the moment somebody is on leave, and it cannot be onboarded into.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>How to hire for the middle role<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The analytics engineer is the hard hire, because the combination is unusual. You need genuine SQL depth, which is common, plus software habits, which is common, in the same person, which is not.</p>
+        <ul>
+          <li><strong>SQL depth</strong> means window functions, grain, and knowing why a join fanned out without having to run it twice. It is testable in half an hour and you probably already know how.</li>
+          <li><strong>Software habits</strong> means version control as a daily reflex, review as a normal part of shipping rather than an insult, and the assumption that anything important has a test. This is the half that interviews usually skip.</li>
+        </ul>
+        <p><strong>The signal worth watching for:</strong> the candidate brings up tests before you do. Ask them to describe a data problem they fixed, and listen for whether the story ends at "and then I fixed the query" or at "and then I added a check so it could not silently happen again." The second answer is rare, and it is the whole role. Somebody who volunteers tests unprompted has internalised the thing that separates this job from writing analysis SQL well.</p>
+        <p>The mirror-image hire is worth naming too. An excellent software engineer with no feel for grain will build you a beautifully maintained estate of models at the wrong grain, and the tooling will help them do it faster. Both halves, or you are trading one failure for another.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: REVIEW ============ -->
+  <section class="section" id="review">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the cultural precondition</span>
+      <h2>Review is the whole thing <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">Every benefit session a2 claimed for models-as-code routes through one behaviour: somebody other than the author reads the change before it ships. Version control without review is an expensive backup system. Tests without review are a suite that slowly loses the tests that were inconvenient. This is the one cultural thing you cannot buy, and it is the thing that decides whether a4's spend was worth it.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A team that reviews versus a team that will not review, and the hiring signal">
+        <style>
+          .vT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .vC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .vB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .vN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="404" height="40" rx="8" fill="#3F7F72"/>
+        <text class="vT" x="44" y="53">A team that reviews</text>
+        <text class="vC" x="44" y="92">a definition change is visible before it ships</text>
+        <text class="vC" x="44" y="112">conventions spread by being asked for in reviews</text>
+        <text class="vC" x="44" y="132">two people understand every model, minimum</text>
+        <text class="vC" x="44" y="152">a new joiner learns the estate by reading reviews</text>
+        <text class="vC" x="44" y="172">the test suite grows, because someone asks</text>
+
+        <rect x="450" y="28" width="404" height="40" rx="8" fill="#991B1B"/>
+        <text class="vT" x="468" y="53">A team that will not review</text>
+        <text class="vC" x="468" y="92">changes are announced, not proposed</text>
+        <text class="vC" x="468" y="112">conventions live in one person's head</text>
+        <text class="vC" x="468" y="132">every model has exactly one reader</text>
+        <text class="vC" x="468" y="152">onboarding is measured in months</text>
+        <text class="vC" x="468" y="172">tests get deleted when they are inconvenient</text>
+
+        <rect x="26" y="200" width="828" height="96" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="vB" x="46" y="224">The line to remember when you are approving the spend</text>
+        <text class="vN" x="46" y="246">A team that will not review pays the entire cost of the tooling and collects none of the benefit.</text>
+        <text class="vN" x="46" y="266">The build step, the templating and the learning curve all still arrive. The safety does not, because</text>
+        <text class="vN" x="46" y="286">every mechanism that produces it assumes a second pair of eyes that this team has not agreed to.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the one thing you cannot purchase</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Who reviews whose model<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Review works when the reviewer has standing to object, which means the pairing is not arbitrary.</p>
+        <ul>
+          <li><strong>A shared-core model</strong> - a conformed dimension, the definition of revenue, anything more than one domain depends on - is reviewed by the central owner of that core. Always. This is the review you never delegate, because it is the one that keeps five definitions from becoming five numbers.</li>
+          <li><strong>A domain's own mart</strong> is reviewed inside the domain, by another person in that domain who understands the business meaning. Central does not need to approve it, and insisting on approving it is how you become the ticket queue.</li>
+          <li><strong>Anything touching a source declaration</strong> is reviewed by the data engineer who owns the landing, because they are the only person who knows what upstream is about to do.</li>
+          <li><strong>An analyst's exploration</strong> is not reviewed at all. That is deliberate. Review is a cost, and spending it on work that nothing depends on is the fastest way to make people resent the whole practice.</li>
+        </ul>
+        <p>That last point is worth saying to your team out loud. Review everything and you have built a bottleneck with good intentions. The shape you want is: heavy review on the shared core, light review inside domains, no review on exploration. The layering is what makes that distinction possible, which is one more reason the conventions matter.</p>
+        <div class="callout tip">
+          <strong>The two-day rule</strong>
+          If a review routinely sits for more than two days, review is not your practice, it is your queue. Fix the capacity or narrow what requires review, but do not leave it, because the team's next move is to stop proposing changes.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What a review of a model should actually check<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Leaders do not need to run these reviews, but you should know what a good one looks like, because "we review everything" is easy to say and hard to verify.</p>
+        <ul>
+          <li><strong>Is the grain what the model claims?</strong> One row per what. This is the question that catches the most expensive class of mistake, and it comes from the modeling discipline rather than from the tool.</li>
+          <li><strong>Does this change a shared definition?</strong> If yes, who else is affected, and have they been told. The dependency graph answers the first half mechanically.</li>
+          <li><strong>Is the new thing tested?</strong> Session a3's argument, applied one change at a time. A reviewer asking "what test defends this" is how a test suite grows without anyone running a testing initiative.</li>
+          <li><strong>Is it in the right layer?</strong> Joins in staging, business logic in three places, a mart joining two facts: all of these are cheap to prevent in review and expensive to unwind later.</li>
+          <li><strong>Could the next person read it?</strong> Not style policing. Genuinely: does the description say what the column means, so nobody has to reconstruct intent from the SQL.</li>
+        </ul>
+        <p>Five questions, no tooling required, and they are the same five whichever option session a4 landed on.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: FAILURE SHAPES ============ -->
+  <section class="section" id="shapes">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers Dehghani, <em>Data Mesh</em></span>
+      <h2>Two failure shapes, one middle path <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">There are two ways to organise this and both of them fail, which is why the answer is a boundary rather than a model. Fully centralise and the data team becomes the constraint it was hired to remove. Fully federate and you get five defensible definitions of revenue and no way to add them up.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The ticket-queue failure, the five-definitions failure, and the middle path">
+        <style>
+          .sT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .sC { font: 400 11px Inter, sans-serif; fill: #6B6B78; }
+          .sB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .sN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="30" width="266" height="44" rx="8" fill="#991B1B"/>
+        <text class="sT" x="42" y="58">Failure 1 · ticket queue</text>
+        <text class="sC" x="42" y="100">Central team owns every model.</text>
+        <text class="sC" x="42" y="120">Domains file requests and wait.</text>
+        <text class="sC" x="42" y="140">The queue grows, trust drops,</text>
+        <text class="sC" x="42" y="160">people quietly go back to their</text>
+        <text class="sC" x="42" y="180">own spreadsheets. The team is</text>
+        <text class="sC" x="42" y="200">the bottleneck it was hired to fix.</text>
+
+        <rect x="306" y="30" width="266" height="44" rx="8" fill="#991B1B"/>
+        <text class="sT" x="322" y="58">Failure 2 · five revenues</text>
+        <text class="sC" x="322" y="100">Five domains own everything.</text>
+        <text class="sC" x="322" y="120">Five definitions of revenue,</text>
+        <text class="sC" x="322" y="140">each locally defensible, none</text>
+        <text class="sC" x="322" y="160">shared. Board meetings become</text>
+        <text class="sC" x="322" y="180">reconciliation meetings. Nobody</text>
+        <text class="sC" x="322" y="200">is wrong and nothing agrees.</text>
+
+        <rect x="586" y="30" width="268" height="44" rx="8" fill="#3F7F72"/>
+        <text class="sT" x="602" y="58">The middle path</text>
+        <text class="sC" x="602" y="100">Central owns the shared core:</text>
+        <text class="sC" x="602" y="120">conformed dimensions, the</text>
+        <text class="sC" x="602" y="140">definitions everyone depends on,</text>
+        <text class="sC" x="602" y="160">the conventions, the review bar.</text>
+        <text class="sC" x="602" y="180">Domains own their own marts,</text>
+        <text class="sC" x="602" y="200">built against that core.</text>
+
+        <rect x="26" y="222" width="828" height="76" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="sB" x="46" y="246">The boundary, not the model, is the decision you are making</text>
+        <text class="sN" x="46" y="268">Write down exactly which definitions are central and non-negotiable. Everything not on that list</text>
+        <text class="sN" x="46" y="288">belongs to a domain. A short list that is genuinely enforced beats a long list that is aspirational.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - both extremes fail, and they fail differently</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>How to tell which failure you already have<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Both shapes have a tell, and both tells are visible without any instrumentation.</p>
+        <p><strong>The ticket-queue tell</strong> is a shadow estate. Somewhere in your company there is a folder of spreadsheets, or a dashboard nobody in the data team has seen, that does the job the queue was too slow to do. People are not being difficult; they had a deadline. Ask how long the longest-waiting model request has been open this quarter, and then ask what the requester did in the meantime. The answer to the second question is the size of your shadow estate.</p>
+        <p><strong>The five-revenues tell</strong> is a reconciliation meeting. Not one meeting: a standing one, where two teams bring different numbers for the same thing and spend an hour establishing which is which. That meeting is a symptom being managed rather than a problem being fixed, and its existence usually predates anybody noticing it is unusual.</p>
+        <p>The middle path is not a compromise between these, it is a different structure. Central owns a deliberately short list of things everybody depends on, and owns the conventions and the review bar. Domains own everything else and build on top. What central sells the domains is not permission, it is leverage: a dimension that is already conformed, a definition already agreed, and a review that catches the mistake before their stakeholder does.</p>
+        <div class="callout tip">
+          <strong>Keep the central list short</strong>
+          Every item on it is a review you owe, forever. A list of six things you genuinely defend is worth more than a list of forty that domains have learned to route around.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What domain ownership requires you to actually give away<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Decentralised ownership is popular in slide decks and rare in practice, because it has a precondition most organisations skip: the domain has to be capable of owning the thing, and capability means people, standards and consequences.</p>
+        <ul>
+          <li><strong>Somebody in the domain has the skills.</strong> Not "an analyst who is good with SQL" but someone who will meet the review bar and write the tests. If nobody in the domain can do that, you have not federated ownership, you have federated the blame.</li>
+          <li><strong>The standard is central even when the work is not.</strong> Conventions, the review bar, the test expectations, and how documentation gets produced. Distributed teams with no shared standard produce five estates, not one.</li>
+          <li><strong>The domain owns the consequence.</strong> When their mart is wrong, their stakeholder calls them. If it routes back to the central team anyway, ownership never moved and everybody now has two owners for one thing.</li>
+        </ul>
+        <p>The honest version for most mid-sized organisations is: federate later than the deck suggests. Start central, keep the shared core small and well defended, and hand a domain its own marts the moment that domain has a person who will meet the bar. Not before.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discuss">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 18 min · everyone participates</span>
+      <h2>Draw your ownership map <span class="tag demo">★ one page, no laptops</span></h2>
+    </div>
+    <p class="lede">Three exercises. The first takes eight minutes in your next team meeting and produces an artifact you will use for a year. The second is the most uncomfortable and the most useful.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>List the layers down one side of a page.</strong> Sources, staging, shared definitions, marts, the last mile. Five rows, no more.</p></div>
+      <div class="step"><p><strong>Put exactly one name against each.</strong> One. If two names appear, the ownership was implied and you have just found it.</p></div>
+      <div class="step"><p><strong>Add a reviewer column.</strong> Who reads a change to that layer before it ships. "Nobody" is a permitted answer and an informative one.</p></div>
+      <div class="step"><p><strong>Circle the rows where owner and reviewer are the same person.</strong> Those are your single points of failure, ranked by how many things depend on them.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · the one-page ownership map<span class="mini">8 min · run this in your next team meeting</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "I am going to write five layers on the board: sources, staging, our shared definitions, the marts, and the last mile. For each one I want one name as owner and one name as reviewer. Not a team name. A person. If you cannot give me one name, say so and we will write 'unclear', which is a real answer."</p>
+        <p><strong>What a good answer sounds like.</strong> Some rows fill in instantly, one or two produce a pause, and at least one gets 'unclear' written next to it. The word 'unclear' appearing on the board is the success condition, not a failure: it means an assumption that was previously invisible is now a line item somebody can be assigned. Ideal output is five owners, three or four reviewers, and one or two honest gaps.</p>
+        <p><strong>The failure mode to listen for.</strong> A team name in the owner column. "The data team owns staging." That is exactly the implied ownership this exercise exists to surface, and it feels like an answer while committing nobody. Push once, politely, for a person. If the room genuinely cannot name one, that layer has no owner, and the sentence to say out loud is: "then when it breaks, everybody will assume somebody else is handling it."</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · the silent revenue count<span class="mini">6 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Everyone take thirty seconds and write down, privately, how our headline number is defined. Include what is excluded. Then we read them out." Use whatever your equivalent of settled revenue is: the number that appears on the board pack.</p>
+        <p><strong>What a good answer sounds like.</strong> Genuine convergence with one or two edge cases surfacing: three people write the same thing, and a fourth adds "net of refunds, but I think we include failed payments that later settle." That edge case is the actual finding, and it is now a decision somebody can own rather than a difference that shows up quarterly in a reconciliation.</p>
+        <p><strong>The failure mode to listen for.</strong> Two structurally different definitions, both confident, from two people who work together weekly. That is failure shape 2 in miniature, and the important part is what happens next: if the room's instinct is to decide which is right, good. If the instinct is "well, we use different ones for different purposes", you have a naming problem being described as a nuance, and both numbers will keep appearing on slides with the same label.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Exercise 3 · the last three changes<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Take the last three changes to the model behind our most-used number. For each one, tell me who proposed it, who read it before it shipped, and how long the reading took."</p>
+        <p><strong>What a good answer sounds like.</strong> Three names in the reviewer column, with at least one review that produced a change. A review that never asks for anything is attendance, not review, so the healthy signal is a story like "Priya asked what happens to cancelled orders and we added a test."</p>
+        <p><strong>The failure mode to listen for.</strong> "Same person proposed and shipped all three, and it was fine." It probably was fine. The point is that you have no mechanism, only a track record, and a track record does not survive that person being busy. This is also the exact answer that tells you the tooling from session a4 is not paying for itself yet, because every benefit it offers is downstream of somebody else reading the change.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The most common shape in a mid-sized company is a central team of three that is quietly both failures at once.</strong> They own every model, so domains queue behind them, which is failure one. And because the queue is long, two domains have built their own reporting on the side, with their own revenue logic, which is failure two arriving through the back door rather than by design. Nobody chose either. The fix is not a reorganisation: it is a short written list of the definitions central will defend, a review bar published so domains know what "good" means, and then handing the first domain its own marts as soon as it has one person who will meet that bar. What central gives up is control over work it was never going to get to. What it keeps is the small set of definitions everything else adds up to.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="ask">
+    <div class="section-kicker">
+      <span class="klabel">Take this back to your team</span>
+      <h2>Questions to ask your data team <span class="tag concept">use them this week</span></h2>
+    </div>
+    <p class="lede">Seven questions. Several of them are most informative when nobody can answer quickly.</p>
+    <table class="clean">
+      <thead><tr><th>Ask</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"Point at our staging layer and tell me the one person who owns it."</td>
+          <td>Hesitation is the finding. A team name or "mostly Sam" means ownership is implied, and implied ownership holds until the first disagreement, at which point it becomes the disagreement.</td>
+        </tr>
+        <tr>
+          <td>"Who read the last three changes to our headline number before they shipped?"</td>
+          <td>Tests whether review is a mechanism or a memory. If the answer is the author each time, none of the tooling from session a4 is earning its cost yet.</td>
+        </tr>
+        <tr>
+          <td>"How many working definitions of revenue exist in this company today?"</td>
+          <td>The answer is almost never one, and the number is a direct measure of how much of failure shape 2 you already have. Follow up with where each one lives.</td>
+        </tr>
+        <tr>
+          <td>"What is the longest a domain has waited for a model this quarter, and what did they do while waiting?"</td>
+          <td>The first half detects the ticket queue. The second half sizes the shadow estate that the queue produced, which is the cost nobody logs.</td>
+        </tr>
+        <tr>
+          <td>"What do we hand between roles, and is it a document or a meeting?"</td>
+          <td>Handoffs that are meetings leave nothing readable behind. A structure held together by conversation cannot be onboarded into and does not survive annual leave.</td>
+        </tr>
+        <tr>
+          <td>"In our last interview loop, did any candidate mention tests before we did?"</td>
+          <td>The single most diagnostic hiring signal for this role. Somebody who volunteers tests unprompted has internalised the habit that separates analytics engineering from writing good analysis SQL.</td>
+        </tr>
+        <tr>
+          <td>"If our analytics engineer took a month of leave starting Monday, what stops?"</td>
+          <td>Turns single points of failure into a list. Anything on that list is either a documentation gap, session a6's subject, or a second person you have not hired.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session a6 <span class="tag exercise">◐ 30-40 min total</span></h2>
+    </div>
+    <ul>
+      <li>Finish the one-page ownership map and circulate it. Five layers, one owner each, one reviewer each, and the word 'unclear' left visible where it applies. Ask for corrections rather than approval, because corrections arrive and approvals do not.</li>
+      <li>Write the central list: the definitions you will defend centrally, and nothing else. If it runs past about eight items, you are describing an aspiration rather than a boundary, and the domains will route around it.</li>
+      <li>Find out how long your reviews actually sit. If the typical wait is over two days, decide this week whether to add capacity or narrow what requires review, because the third option is that people stop proposing changes.</li>
+      <li>Add one question to your interview loop for the middle role: "tell me about a data problem you fixed." Note whether tests come up before you mention them. Compare across your next three candidates.</li>
+      <li>List everything that stops if your key person takes a month off. Bring that list to a6, which is about turning most of it into something generated rather than remembered.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Dehghani, <em>Data Mesh</em> - domain ownership, and why producers own quality</span><span class="note">Part 3 · used for the central-versus-federated argument and the preconditions federation actually needs</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Software-engineering practice applied to SQL - review, ownership, environments</span><span class="note">Parts 1-2 · review as the cultural precondition, and the hiring signal that follows from it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation - model contracts as the interface between a producer and a consumer</span><span class="note">Part 1 · named as what a handoff looks like when it is enforceable. Taught in the builder track</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The community layering conventions</span><span class="note">Part 1 · the layer boundaries the three roles map onto, and why they make selective review possible</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - conformed dimensions, which is what "shared core" means concretely</span><span class="note">Part 3 · pointer only. The model is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Your team of two has adopted a transformation tool, but both people ship their own changes without anyone else reading them. What have you bought?</p>
+      <button class="qopt" type="button">A · Most of the benefit, since the models are now version-controlled and tested</button>
+      <button class="qopt" type="button">B · The full cost and almost none of the benefit, because every safety mechanism assumes a second reader</button>
+      <button class="qopt" type="button">C · A neutral outcome that will improve on its own as the estate grows</button>
+      <p class="qwhy">The build step, the templating and the learning curve all arrive regardless. What does not arrive is the moment a definition change becomes visible before it ships, which is where the safety actually lives. Review is the one part of this you cannot purchase, and without it the tooling is an expensive backup system.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · Five domains each define revenue slightly differently, and each definition is defensible in its own context. What is the correct leadership move?</p>
+      <button class="qopt" type="button">A · Centralise all model building so only one team can write a definition</button>
+      <button class="qopt" type="button">B · Accept it, since each domain understands its own context best</button>
+      <button class="qopt" type="button">C · Publish a short central list of the definitions you will defend, and leave everything else to the domains</button>
+      <p class="qwhy">Option A is failure shape 1 and turns you into a ticket queue. Option B is failure shape 2 and makes board meetings into reconciliation meetings. The middle path is a boundary: central owns the shared core and the conventions, domains own their own marts built against it. Keep the central list short, because every item on it is a review you owe forever.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · You are interviewing for an analytics engineer. Which candidate behaviour is the strongest signal?</p>
+      <button class="qopt" type="button">A · Describing a data problem they fixed and mentioning, unprompted, the check they added so it could not happen silently again</button>
+      <button class="qopt" type="button">B · Naming more warehouse platforms than the other candidates</button>
+      <button class="qopt" type="button">C · Writing the cleanest SQL in the technical exercise</button>
+      <p class="qwhy">SQL depth is common and testable in half an hour. The rare half is software habits: version control as reflex, review as normal, and the assumption that anything important has a test. A candidate who raises tests before you do has internalised the thing that separates this role from writing analysis SQL well.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Leader session 5 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Three roles</b><span>DE: sources land. AE: staging through marts, definitions, tests. Analyst: questions, last mile.</span></div>
+      <div class="cheat-item"><b>One person, three hats</b><span>Fine at small scale. Only fine if the ownership is written down rather than implied.</span></div>
+      <div class="cheat-item"><b>Review is everything</b><span>A team that will not review pays the whole cost of the tooling and collects none of the benefit.</span></div>
+      <div class="cheat-item"><b>Who reviews what</b><span>Heavy on the shared core, light inside domains, none on exploration. Never review everything.</span></div>
+      <div class="cheat-item"><b>Failure 1</b><span>Central team becomes a ticket queue. Tell: a shadow estate of spreadsheets somewhere.</span></div>
+      <div class="cheat-item"><b>Failure 2</b><span>Full federation, five definitions of revenue. Tell: a standing reconciliation meeting.</span></div>
+      <div class="cheat-item"><b>The middle path</b><span>Central owns the shared core and the conventions. Domains own their marts against it.</span></div>
+      <div class="cheat-item"><b>Hire for both halves</b><span>SQL depth plus software habits. The signal: they mention tests unprompted. Next: a6.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 5 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="a4-buy-vs-build.html">← Previous: Buy vs build the transformation layer</a> &nbsp;·&nbsp; <a href="a6-docs-that-stay-true.html">Next: Documentation that stays true →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

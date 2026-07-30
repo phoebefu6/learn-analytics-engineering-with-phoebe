@@ -1,0 +1,56 @@
+# Sources are the ONLY place a raw table name appears in this project. Every model
+# reaches them through source(), so if the loader renames a table you edit one file.
+version: 2
+
+sources:
+  - name: bazaar
+    description: >
+      Bazaar's OLTP tables, landed in the warehouse by the loader (python/load_raw.py stands
+      in for Fivetran, Airbyte or a Python job). dbt never extracts - it transforms what is
+      already here.
+    schema: raw
+    tables:
+      - name: users
+        columns:
+          - name: user_id
+            tests: [unique, not_null]
+          - name: email
+            tests: [unique, not_null]
+      - name: merchants
+        columns:
+          - name: merchant_id
+            tests: [unique, not_null]
+      - name: products
+        columns:
+          - name: product_id
+            tests: [unique, not_null]
+          - name: merchant_id
+            tests:
+              - not_null
+              - relationships:
+                  arguments:
+                      to: source('bazaar', 'merchants')
+                      field: merchant_id
+      - name: carts
+        columns:
+          - name: cart_id
+            tests: [unique, not_null]
+      - name: cart_items
+      - name: orders
+        columns:
+          - name: order_id
+            tests: [unique, not_null]
+          - name: user_id
+            tests:
+              - not_null
+              - relationships:
+                  arguments:
+                      to: source('bazaar', 'users')
+                      field: user_id
+      - name: order_items
+      - name: transactions
+        columns:
+          - name: txn_id
+            tests: [unique, not_null]
+          - name: psp_ref
+            tests: [unique]

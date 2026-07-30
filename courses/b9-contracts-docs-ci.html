@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 9 · Contracts, docs and deployment - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 9 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 9 of 10</div>
+    <h1>Contracts, docs <span class="accent">and deployment</span></h1>
+    <p class="sub">The ship-it session. Session b7 gave you tests, which check the data. This one gives you contracts, which check the <em>shape</em> - and shape is what every BI tool, export and reverse-ETL sync silently depends on. Then exposures, so the consumers dbt cannot see appear in the lineage anyway; generated docs, which are a manifest this course's own site reads; and deployment - one repo, two targets, and a CI run that tests only what a pull request touched. Everything here exists because of the blind spot you found in b4.</p>
+    <div class="chip-row">
+      <span class="chip level">🔴 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-17 · Contracts versus tests</span>
+      <span class="a3" style="flex:3">17-30 · Exposures and generated docs</span>
+      <span class="a4" style="flex:4">30-45 · Deployment, CI, and Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>What is left after the project works</h2>
+    </div>
+    <p class="lede">The project builds, 100 tests pass, and the numbers reconcile. None of that protects the person on the other side of your marts. A dashboard that reads <code>net_revenue</code> from <code>mart_merchant_daily</code> has an implicit contract with you - a column name and a data type - and dbt has no idea it exists. You can rename that column, ship it in a green build, and find out on Monday.</p>
+    <p class="lede">Three mechanisms close that gap, and they are different in kind: a <strong>contract</strong> makes the shape enforceable, an <strong>exposure</strong> makes the consumer visible, and <strong>generated docs</strong> make both readable by someone who will never open your repo. Then deployment decides where all of it runs. This session is the whole set, in that order.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A precise distinction between a test and a contract, a contract violation you have watched fail, exposures written for the four consumers this project actually has, an understanding of docs as data rather than as a website, and the CI selector <code>state:modified+</code> with an honest account of what belongs in CI and what belongs to an orchestrator.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: CONTRACTS ============ -->
+  <section class="section" id="contracts">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on model contracts and constraints</span>
+      <h2>A test checks the data, a contract checks the shape <span class="tag concept">8 min live</span></h2>
+    </div>
+    <p class="lede">Both are declared in YAML, both fail a build, and people conflate them constantly. The difference is when they run and what they look at. A test runs after the model is built and asks whether the rows are right. A contract is enforced <em>as</em> the model is built and asks whether the columns are what you promised. Shape is the thing other people depend on, and it is the thing tests cannot see.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three mechanisms compared: a test checks the data, a contract checks the shape, an exposure names the consumer">
+        <style>
+          .c9T { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .c9G { font: 700 11.5px Inter, sans-serif; fill: #22222A; }
+          .c9C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .c9H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .c9N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="268" height="42" rx="8" fill="#D94E24"/>
+        <text class="c9T" x="42" y="55">TEST - checks the DATA</text>
+        <text class="c9G" x="42" y="94">runs AFTER the model is built</text>
+        <text class="c9C" x="42" y="116">a query that must return no rows</text>
+        <text class="c9C" x="42" y="138">unique, not_null, relationships,</text>
+        <text class="c9C" x="42" y="158">accepted_values, plus 5 singular</text>
+        <text class="c9C" x="42" y="180">failure: build fails, downstream SKIPs</text>
+        <text class="c9C" x="42" y="200">100 of these in this project</text>
+
+        <rect x="306" y="28" width="268" height="42" rx="8" fill="#2B2B33"/>
+        <text class="c9T" x="322" y="55">CONTRACT - checks the SHAPE</text>
+        <text class="c9G" x="322" y="94">enforced AS the model is built</text>
+        <text class="c9C" x="322" y="116">column names, data types, order</text>
+        <text class="c9C" x="322" y="138">plus not_null and check constraints</text>
+        <text class="c9C" x="322" y="158">contract: enforced: true, per model</text>
+        <text class="c9C" x="322" y="180">failure: nothing lands, no bad object</text>
+        <text class="c9C" x="322" y="200">what BI and reverse-ETL rely on</text>
+
+        <rect x="586" y="28" width="268" height="42" rx="8" fill="#3F7F72"/>
+        <text class="c9T" x="602" y="55">EXPOSURE - names the CONSUMER</text>
+        <text class="c9G" x="602" y="94">declared, not enforced</text>
+        <text class="c9C" x="602" y="116">dashboard, export, ML, reverse-ETL</text>
+        <text class="c9C" x="602" y="138">depends_on: ref('mart_...')</text>
+        <text class="c9C" x="602" y="158">appears in lineage and in the docs</text>
+        <text class="c9C" x="602" y="180">selectable: +exposure:exec_funnel</text>
+        <text class="c9C" x="602" y="200">closes b4's blind spot</text>
+
+        <rect x="26" y="232" width="828" height="98" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="c9H" x="46" y="258">Why shape is the failure mode that hurts other people</text>
+        <text class="c9N" x="46" y="282">A wrong number is discovered by whoever reads it. A renamed column, a widened type or a dropped field breaks</text>
+        <text class="c9N" x="46" y="302">a tool instead of a person: the dashboard errors, the sync half-writes, the export lands with a missing field and</text>
+        <text class="c9N" x="46" y="322">nobody notices for a week. Tests cannot see any of it, because the rows were perfectly fine.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three mechanisms, three different jobs</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th></th><th>Test</th><th>Contract</th><th>Exposure</th></tr></thead>
+      <tbody>
+        <tr><td>Looks at</td><td>rows</td><td>columns and types</td><td>who reads the model</td></tr>
+        <tr><td>Runs</td><td>after the model is built</td><td>while the model is built</td><td>never - it is metadata</td></tr>
+        <tr><td>On failure</td><td>build fails, downstream SKIPs, but the object exists</td><td>build fails and nothing is created</td><td>cannot fail; it makes a dependency visible</td></tr>
+        <tr><td>Catches</td><td>duplicates, NULLs, orphan keys, a definition that moved</td><td>a rename, a retype, a dropped column, a reordered select</td><td>the consumer dbt has no edge to</td></tr>
+        <tr><td>Cost</td><td>build time, one query each</td><td>near zero, plus rigidity you have to maintain</td><td>a few lines of YAML per consumer</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What a contract looks like, and what happens when a model violates its own<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A contract is two things in the model's YAML: <code>contract: enforced: true</code> in the config, and a <code>data_type</code> on every column. Once both are present, dbt requires the model's compiled SELECT to produce exactly those columns with exactly those types. For <code>mart_merchant_daily</code> that promise is <code>activity_date</code> as DATE, <code>merchant_id</code> as VARCHAR, <code>net_revenue</code> as DOUBLE, <code>aov_numerator</code> as DOUBLE and <code>aov_denominator</code> as BIGINT.</p>
+        <p>Now suppose somebody tidies the model and renames <code>net_revenue</code> to <code>revenue</code>, and a <code>round()</code> turns <code>aov_denominator</code> into a DOUBLE on the way past. Three things happen, in this order:</p>
+        <ul>
+          <li><strong>The build fails at that model,</strong> before any object is created. There is no half-correct table for a dashboard to read.</li>
+          <li><strong>The error names the columns.</strong> dbt reports the mismatch per column - what was promised, what the SELECT produced - so the diagnosis takes seconds rather than an afternoon.</li>
+          <li><strong>Everything downstream SKIPs,</strong> exactly as it does for a failed test. The blast radius is contained by the same graph.</li>
+        </ul>
+        <p>Constraints go one step further and push the promise into the warehouse itself: <code>not_null</code>, <code>primary_key</code>, <code>unique</code> and <code>check</code> can be declared alongside the types. How much of that is actually enforced depends on the warehouse - some platforms enforce all of it, some only <code>not_null</code>, and DuckDB sits in the middle. dbt is explicit about this in its docs and you should be explicit about it with your team: a constraint your platform does not enforce is documentation, and calling it enforcement is how people stop trusting the word.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Which models deserve a contract, and which do not<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A contract is a promise, and a promise you make everywhere is a promise you will resent. The useful rule is that a contract belongs on a model with a consumer you cannot edit:</p>
+        <ul>
+          <li><strong>Yes on marts that a BI tool, an export or a reverse-ETL sync reads.</strong> These are the models where a rename is somebody else's outage. In this project that is the three <code>mart_*</code> models.</li>
+          <li><strong>Yes on anything another team refs across a project boundary.</strong> If they cannot see your pull request, they need an interface, not goodwill.</li>
+          <li><strong>No on staging models.</strong> They are cheap, disposable and consumed only by models in the same repo, where the DAG already tells you what breaks and CI already tests it.</li>
+          <li><strong>No on intermediate models.</strong> They are ephemeral - there is no object, so there is nothing to have a shape.</li>
+        </ul>
+        <p>The cost is real and it is not compute: it is that every column addition now touches two files, and a type change becomes a conversation. That is the correct amount of friction on a public interface and the wrong amount everywhere else. Model versions exist for the case where you need to change a contract without breaking today's consumers - you publish the new shape alongside the old one and migrate readers deliberately.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The honest limit of a contract<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A contract guarantees that <code>net_revenue</code> exists and is a DOUBLE. It guarantees nothing about what <code>net_revenue</code> means. Somebody can change the model from settled revenue to gross revenue, keep the name and the type, and the contract will be perfectly satisfied while every dashboard on the other side becomes wrong by 8.1%.</p>
+        <p>That failure is the b7 lesson again, and it needs the b7 tool: a singular test comparing the mart's total against the fact it aggregates. Contracts and tests are complements, not alternatives - shape and meaning are two different promises, and a mature model layer makes both of them explicitly.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: EXPOSURES, DOCS, DEPLOYMENT ============ -->
+  <section class="section" id="deploy">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers dbt documentation on exposures, docs, node selection and state comparison</span>
+      <h2>Exposures, docs as data, and two targets <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">A contract protects a consumer you cannot see. An exposure makes it visible. Generated docs make the whole thing readable. And a target decides where any of it lands - the same code, one flag, no diff between dev and prod.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 344" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One repository, two targets: dev build, pull request, CI on the changed subgraph, production build, with an orchestrator outside dbt's scope">
+        <style>
+          .d9T { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .d9C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .d9M { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .d9H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .d9N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .d9Arr { stroke: #D94E24; stroke-width: 2.5; fill: none; marker-end: url(#d9Ah); }
+        </style>
+        <defs>
+          <marker id="d9Ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#D94E24"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="26" width="186" height="34" rx="7" fill="#2B2B33"/>
+        <text class="d9T" x="42" y="48">1 · dev target</text>
+        <rect x="26" y="68" width="186" height="86" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="d9M" x="40" y="90">dbt build</text>
+        <text class="d9C" x="40" y="112">your own schema</text>
+        <text class="d9C" x="40" y="132">nobody else reads it</text>
+
+        <rect x="240" y="26" width="186" height="34" rx="7" fill="#2B2B33"/>
+        <text class="d9T" x="256" y="48">2 · pull request</text>
+        <rect x="240" y="68" width="186" height="86" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="d9C" x="254" y="90">the model as a diff</text>
+        <text class="d9C" x="254" y="112">a second person reads</text>
+        <text class="d9C" x="254" y="132">the definition change</text>
+
+        <rect x="454" y="26" width="186" height="34" rx="7" fill="#D94E24"/>
+        <text class="d9T" x="470" y="48">3 · CI run</text>
+        <rect x="454" y="68" width="186" height="86" rx="6" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="d9M" x="468" y="90">--select state:modified+</text>
+        <text class="d9C" x="468" y="112">build + test only the</text>
+        <text class="d9C" x="468" y="132">changed subgraph</text>
+
+        <rect x="668" y="26" width="186" height="34" rx="7" fill="#3F7F72"/>
+        <text class="d9T" x="684" y="48">4 · prod target</text>
+        <rect x="668" y="68" width="186" height="86" rx="6" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="d9M" x="682" y="90">--target prod</text>
+        <text class="d9C" x="682" y="112">same code, one flag</text>
+        <text class="d9C" x="682" y="132">main_marts, real readers</text>
+
+        <path class="d9Arr" d="M212,111 L236,111"/>
+        <path class="d9Arr" d="M426,111 L450,111"/>
+        <path class="d9Arr" d="M640,111 L664,111"/>
+
+        <rect x="26" y="174" width="828" height="152" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="d9H" x="46" y="200">What is CI's job, and what is not</text>
+        <text class="d9N" x="46" y="224">CI owns: build and test the changed subgraph on the pull request, and refuse to merge on any ERROR. It answers</text>
+        <text class="d9N" x="46" y="244">one question - is this change safe - and it must be fast enough that nobody learns to skip it.</text>
+        <text class="d9N" x="46" y="270">An orchestrator owns: when the production build runs, what runs before it, retries, backfills, alerting and SLAs.</text>
+        <text class="d9N" x="46" y="290">dbt Cloud can run both of these, and a plain CI runner plus cron, Airflow or Dagster does the same job. Neither</text>
+        <text class="d9N" x="46" y="310">arrangement is more real than the other, and this course teaches the selector rather than the product.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - one repo, two targets, and the line where dbt stops</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exposures: writing down the consumers dbt cannot see<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Session b4 ended on a blind spot: the graph knows every dependency you expressed with <code>ref()</code> and nothing about a dashboard, an export or a reverse-ETL sync. An exposure is a few lines of YAML that puts those back in the graph. Each one names the consumer, its type (<code>dashboard</code>, <code>notebook</code>, <code>analysis</code>, <code>ml</code>, <code>application</code>), an owner with an email, and its <code>depends_on</code> list of <code>ref()</code> calls.</p>
+        <p>Bazaar has four such consumers, and writing them down changes three things:</p>
+        <ul>
+          <li><strong>They appear in the lineage and in the generated docs,</strong> so a person reading <code>mart_merchant_daily</code> can see that a finance export and a CRM sync read it, with a name to contact.</li>
+          <li><strong>They become selectable.</strong> <code>dbt build --select +exposure:exec_funnel</code> builds and tests everything that dashboard depends on and nothing else - which is the right command before a board meeting, and the right command when somebody asks "is the exec dashboard safe to look at".</li>
+          <li><strong>An owner exists.</strong> The most useful field in an exposure is not technical. It is the person you have to tell.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The honest caveat</strong>
+          An exposure is a declaration, not a discovery. Nothing scans your BI tool - somebody writes it down and somebody keeps it current, and a stale exposure is a lie with a lineage diagram attached. Which is exactly why the third box below tests exposures against the columns that actually exist.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Generated docs, and why docs-as-data is the real feature<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>dbt docs generate</code> produces two JSON files in <code>target/</code> and a static site that renders them:</p>
+        <ul>
+          <li><strong><code>manifest.json</code></strong> - every node, its description, its columns, its tests, its config, and the full parent and child maps. This is the project as data: 32 nodes and 47 edges for Bazaar, derived from the <code>ref()</code> calls and nothing else.</li>
+          <li><strong><code>catalog.json</code></strong> - what the warehouse actually has: real column names, real data types, row counts, sizes. Queried from the warehouse after the build, not inferred from your SQL.</li>
+        </ul>
+        <p>The site is the least interesting output. The point is that both files are machine-readable, so anything can read them: a catalog tool, a lineage tool, a Slack bot, a CI check that fails when a mart has no description. <strong>This course is itself an example.</strong> The lineage explorer in session b4 is not a picture anyone drew - it reads this project's <code>manifest.json</code>, and the raw-versus-compiled SQL on every node comes from the same place. That is the difference between documentation that drifts and documentation that is generated: the second kind cannot disagree with what was built, because it <em>is</em> what was built.</p>
+        <p>The one thing generation cannot do is write the description. A model with no <code>description</code> generates beautiful, empty documentation. Descriptions are the human half, and they are the half that decays.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Dev, prod, and why state comparison is the whole CI trick<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A target is a named set of connection details in <code>profiles.yml</code>: which database, which schema, how many threads. This project has <code>dev</code>; a real deployment adds <code>prod</code> with a service account and the production schema. Because every model says <code>ref()</code> instead of a table name, the same code builds into your personal schema or the production one depending on a single flag. There is no branch, no environment variable inside the SQL, and no diff between what you tested and what ships.</p>
+        <p>That leaves the question of how CI stays fast. Rebuilding 23 models takes 1.22 seconds here and forty minutes on a real project, so testing everything on every pull request is how CI becomes something people learn to skip. <code>state:modified+</code> is the answer:</p>
+        <ul>
+          <li>CI downloads the <code>manifest.json</code> from the last successful production build - the "state".</li>
+          <li><code>--state path/to/prod/manifest --select state:modified+</code> compares the branch to it and selects the nodes whose definition changed, plus everything downstream of them.</li>
+          <li>dbt builds and tests exactly that subgraph. A one-line change to a mart tests that mart; a change to <code>stg_bazaar__orders</code> tests eight nodes, because the graph knows.</li>
+        </ul>
+        <p>Two things make this bite in practice. First, you need somewhere to keep the production manifest - an artifact store, a bucket, whatever your CI already has. Second, a change to <code>dbt_project.yml</code> or a macro can modify far more than it looks like, so the selector is honest about being large sometimes. That is the correct behaviour and worth explaining to whoever asks why one CI run took twenty minutes.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Enforce a contract by hand <span class="tag demo">★ 7 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">dbt enforces a contract in Python, at build time, and there is no Python in your browser. What there is, is the mechanism: a declared shape, the shape the warehouse actually has, and a query that finds the difference. That query is what a contract does, written out so you can see it.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>First the passing case.</strong> The contract for <code>mart_merchant_daily</code> against the model dbt actually built. Six columns, six matches, nothing to report - which is what a green build looks like from the inside.</p></div>
+      <div class="step"><p><strong>Then the violation.</strong> The second box builds a proposed version of the same mart with a renamed column and a widened type, then runs the identical check. Two CONTRACT ERROR rows, and in a real build nothing would have landed at all.</p></div>
+      <div class="step"><p><strong>Edit the contract, not the model.</strong> Change a promised type in the VALUES list and re-run the first box. Notice that a contract can be wrong too, and that being wrong is loud.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Six promised columns, six matches. This is what dbt checks as the model is built, before anything is created.">
+      <pre class="sql-src">WITH contract(column_name, data_type) AS (
+    VALUES ('activity_date',   'DATE'),
+           ('merchant_id',     'VARCHAR'),
+           ('merchant_name',   'VARCHAR'),
+           ('net_revenue',     'DOUBLE'),
+           ('aov_numerator',   'DOUBLE'),
+           ('aov_denominator', 'BIGINT')
+),
+built AS (
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'main_marts' AND table_name = 'mart_merchant_daily'
+)
+SELECT c.column_name,
+       c.data_type AS promised_type,
+       coalesce(b.data_type, 'not built') AS actual_type,
+       CASE WHEN b.column_name IS NULL      THEN 'CONTRACT ERROR - column missing'
+            WHEN b.data_type &lt;&gt; c.data_type THEN 'CONTRACT ERROR - type changed'
+            ELSE 'ok' END AS build_verdict
+FROM contract c
+LEFT JOIN built b ON b.column_name = c.column_name
+ORDER BY build_verdict, c.column_name;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Two CONTRACT ERROR rows: net_revenue was renamed to revenue, and aov_denominator went from BIGINT to DOUBLE. In dbt this build stops here and no object is created.">
+      <pre class="sql-src">-- Somebody 'tidies' the mart: renames a column and lets a cast widen a type.
+CREATE OR REPLACE TABLE main.mart_merchant_daily__proposed AS
+SELECT activity_date, merchant_id, merchant_name,
+       net_revenue                     AS revenue,
+       aov_numerator,
+       cast(aov_denominator AS DOUBLE) AS aov_denominator
+FROM main_marts.mart_merchant_daily;
+
+WITH contract(column_name, data_type) AS (
+    VALUES ('activity_date',   'DATE'),
+           ('merchant_id',     'VARCHAR'),
+           ('merchant_name',   'VARCHAR'),
+           ('net_revenue',     'DOUBLE'),
+           ('aov_numerator',   'DOUBLE'),
+           ('aov_denominator', 'BIGINT')
+),
+built AS (
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'main' AND table_name = 'mart_merchant_daily__proposed'
+)
+SELECT c.column_name,
+       c.data_type AS promised_type,
+       coalesce(b.data_type, 'not built') AS actual_type,
+       CASE WHEN b.column_name IS NULL      THEN 'CONTRACT ERROR - column missing'
+            WHEN b.data_type &lt;&gt; c.data_type THEN 'CONTRACT ERROR - type changed'
+            ELSE 'ok' END AS build_verdict
+FROM contract c
+LEFT JOIN built b ON b.column_name = c.column_name
+ORDER BY build_verdict, c.column_name;</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The rename in that second box is a perfectly reasonable pull request.</strong> <code>revenue</code> is a better column name than <code>net_revenue</code> if you already know the mart is settled-only, the cast was added to fix a rounding complaint, all 100 tests still pass, and the reviewer approves it in ninety seconds because the diff is two lines. Without a contract this ships, and the failure surfaces as a broken tile in a finance dashboard and a reverse-ETL sync that half-wrote a CRM field. With a contract the build fails on the author's own machine, before the pull request exists. That is the entire value proposition, and it is worth the two files you now have to keep in step.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Exposures, the catalog, and the CI selector <span class="tag demo">★ 8 min · build your own</span></h2>
+    </div>
+    <p class="lede">Three things dbt gives you as data rather than as a screen: the consumers you declared, the catalog the warehouse reports, and the subgraph a change touches. All three are queryable, which is the point.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Test your exposures against the columns that exist<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>These are Bazaar's four consumers, written as an exposure list with the columns each one reads. The join against <code>information_schema</code> is a check nobody usually writes and everybody needs: does every column an exposure claims actually exist in the model it depends on?</p>
+        <div class="sqlbox" data-setup="built" data-caption="One row comes back as BREAKS: the finance export reads commission_amount, but the mart's column is called commission. That is a broken consumer, found without opening the BI tool.">
+          <pre class="sql-src">WITH exposures(exposure_name, exposure_type, depends_on, column_used) AS (
+    VALUES ('merchant_scorecard', 'dashboard',   'mart_merchant_daily',      'net_revenue'),
+           ('merchant_scorecard', 'dashboard',   'mart_merchant_daily',      'merchant_tier'),
+           ('exec_funnel',        'dashboard',   'mart_funnel_daily',        'carts_converted'),
+           ('exec_funnel',        'dashboard',   'mart_funnel_daily',        'net_revenue'),
+           ('ops_deploy_window',  'dashboard',   'mart_hourly_transactions', 'attempts'),
+           ('crm_sync',           'reverse_etl', 'mart_merchant_daily',      'merchant_id'),
+           ('finance_export',     'export',      'mart_merchant_daily',      'commission_amount')
+)
+SELECT e.exposure_name, e.exposure_type, e.depends_on, e.column_used,
+       CASE WHEN c.column_name IS NULL
+            THEN 'BREAKS - column not in the model' ELSE 'ok' END AS status
+FROM exposures e
+LEFT JOIN information_schema.columns c
+       ON c.table_schema = 'main_marts'
+      AND c.table_name   = e.depends_on
+      AND c.column_name  = e.column_used
+ORDER BY status, e.exposure_name;</pre>
+        </div>
+        <p>In a real project this check belongs in CI, and it is the difference between an exposure that documents and an exposure that protects. Note also what the result gives you for free: <code>dbt build --select +exposure:finance_export</code> is now the command that rebuilds and tests exactly what that export depends on.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · This is catalog.json, queried live<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>dbt docs generate</code> builds <code>catalog.json</code> by asking the warehouse what it actually has. Here is the same question, asked directly. Twelve mart objects, every column, every type - and the fact that this is a query rather than a document is the whole idea behind docs-as-data.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Twelve mart tables and their column profiles. mart_funnel_daily is 10 numeric columns and one date, which is what a fully additive mart looks like.">
+          <pre class="sql-src">SELECT table_name,
+       count(*) AS columns,
+       sum(CASE WHEN data_type LIKE '%INT%' OR data_type = 'DOUBLE'
+                THEN 1 ELSE 0 END) AS numeric_columns,
+       sum(CASE WHEN data_type = 'VARCHAR' THEN 1 ELSE 0 END) AS text_columns,
+       sum(CASE WHEN data_type IN ('DATE', 'TIMESTAMP') THEN 1 ELSE 0 END) AS date_columns
+FROM information_schema.columns
+WHERE table_schema = 'main_marts'
+GROUP BY table_name
+ORDER BY table_name;</pre>
+        </div>
+        <p>A CI check built on this shape is three lines long and catches real problems: a mart with a column count that changed unexpectedly, a fact table that acquired a text column, a dimension that lost its date. None of that needs a data-catalog product.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q3 · What <code>state:modified+</code> actually selects<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The selector walks edges. Here are real edges from this project's <code>manifest.json</code>, and a recursive CTE doing exactly the walk dbt does when you change one staging model. The answer - eight nodes including the modified one - is what CI would build and test on that pull request, and nothing else.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Eight nodes: the modified model plus seven downstream, ordered by how many hops away they are. That is the CI job for a one-line change to stg_bazaar__orders.">
+          <pre class="sql-src">WITH RECURSIVE edges(parent, child) AS (
+    VALUES ('stg_bazaar__orders', 'fct_carts'),
+           ('stg_bazaar__orders', 'fct_transactions'),
+           ('stg_bazaar__orders', 'int_order_lines_enriched'),
+           ('stg_bazaar__carts',  'fct_carts'),
+           ('int_cart_contents',  'fct_carts'),
+           ('int_order_lines_enriched', 'fct_order_items'),
+           ('fct_carts',        'mart_funnel_daily'),
+           ('fct_order_items',  'mart_funnel_daily'),
+           ('fct_order_items',  'mart_merchant_daily'),
+           ('fct_transactions', 'mart_funnel_daily'),
+           ('fct_transactions', 'mart_hourly_transactions')
+),
+downstream(node, hops) AS (
+    SELECT 'stg_bazaar__orders', 0
+    UNION
+    SELECT e.child, d.hops + 1
+    FROM edges e JOIN downstream d ON e.parent = d.node
+)
+SELECT node, min(hops) AS hops_away
+FROM downstream
+GROUP BY node
+ORDER BY hops_away, node;</pre>
+        </div>
+        <p>Change the starting node to <code>fct_order_items</code> and the selection drops to three. That difference is why <code>state:modified+</code> keeps CI in minutes on a project where a full build takes an hour, and why the graph you got for free in b4 turns out to be the thing that makes deployment affordable.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q4 · What a target looks like from inside the warehouse<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Twenty objects in two schemas, and the schema names are the only trace a target leaves. Point the same code at <code>prod</code> and this result is identical except for the prefix - which is the strongest argument for <code>ref()</code> there is.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Twelve tables in main_marts, eight views in main_staging. Nothing in the SQL knows which target it is - the profile decided.">
+          <pre class="sql-src">SELECT table_schema, table_type, count(*) AS objects
+FROM information_schema.tables
+WHERE table_schema IN ('main_staging', 'main_marts')
+GROUP BY 1, 2
+ORDER BY 1, 2;</pre>
+        </div>
+        <p>Twenty objects for twenty-three models, because the three intermediate models are ephemeral. Worth remembering when somebody asks why the docs site lists more models than the warehouse has tables.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 30-40 min total</span></h2>
+    </div>
+    <ul>
+      <li>Put a contract on one mart in your own project: <code>contract: enforced: true</code> plus a <code>data_type</code> on every column. Then rename a column on a branch and read the error message. Do it once and you will never argue about contracts again.</li>
+      <li>Write the exposures for the list you made in b4 - dashboards, exports, syncs. Include the owner's email on each one, because that field is the one somebody will thank you for. Then run <code>dbt build --select +exposure:&lt;name&gt;</code>.</li>
+      <li>Run <code>dbt docs generate</code> and open <code>target/manifest.json</code> in an editor rather than the docs site. Find one model with no description. That is your smallest useful documentation task and it takes two minutes.</li>
+      <li>Wire <code>state:modified+</code> into CI: store the production <code>manifest.json</code> somewhere your runner can fetch it, then select against it. Time a pull request before and after.</li>
+      <li>Write down, in two columns, what your CI does and what your orchestrator does. If anything appears in both or in neither, you have found the thing that will page somebody at 3am. Bring the list to b10, where you ship a whole subject area on your own.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - model contracts, <code>enforced: true</code>, column data types, constraints, model versions</span><span class="note">Part 1 + Demo 1 · a contract satisfied and a contract violated, with the platform caveat stated</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - exposures, generated docs, <code>manifest.json</code> and <code>catalog.json</code></span><span class="note">Part 2 + Demo 2 · four real consumers, and this course's own site as the docs-as-data example</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - node selection and state comparison (<code>state:modified+</code>, <code>+exposure:</code>, targets)</span><span class="note">Part 2 self-study + Demo 2 Q3 · the selector walked over this project's real edges</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">dbt Cloud as one way to run CI and production builds</span><span class="note">Named as one option beside a plain CI runner · no UI walkthrough, because that changes quarterly</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - the marts these contracts are placed on</span><span class="note">Recap only for the models being implemented · the model is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Scheduling, retries, backfills and alerting</span><span class="note">Out of scope by design - that is an orchestrator's job and it is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>; loading the raw tables is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · What is the difference between a test and a contract?</p>
+      <button class="qopt" type="button">A · A test is written in SQL and a contract in YAML</button>
+      <button class="qopt" type="button">B · A test checks the data after the model is built; a contract checks the shape as it is built, so a rename or a retype stops the build before any object exists</button>
+      <button class="qopt" type="button">C · A contract is a test that runs on every model automatically</button>
+      <p class="qwhy">Shape is what BI tools, exports and reverse-ETL syncs depend on, and tests structurally cannot see a rename because the rows were fine. They are complements: a contract cannot notice that <code>net_revenue</code> quietly became gross revenue, which is what a singular test is for.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · What does an exposure do?</p>
+      <button class="qopt" type="button">A · Enforces the column types a dashboard needs</button>
+      <button class="qopt" type="button">B · Scans your BI tool and imports its dependencies</button>
+      <button class="qopt" type="button">C · Declares a consumer dbt cannot see - dashboard, export, sync - so it appears in the lineage and docs and becomes selectable with <code>+exposure:name</code></button>
+      <p class="qwhy">Nothing scans anything: somebody writes it down and somebody keeps it current, which is why a stale exposure is a lie with a lineage diagram attached. The most useful field in one is the owner, because that is the person you have to tell.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · A pull request changes one staging model. What should CI build?</p>
+      <button class="qopt" type="button">A · <code>state:modified+</code> - the changed nodes plus everything downstream, compared against the last production manifest</button>
+      <button class="qopt" type="button">B · Everything, every time, so nothing is missed</button>
+      <button class="qopt" type="button">C · Only the modified model, since its tests are the ones that changed</button>
+      <p class="qwhy">Building everything is how CI becomes something people learn to skip; building only the changed model misses the seven nodes downstream of it. The graph already knows the answer, and CI's job is exactly one question: is this change safe. When production runs is an orchestrator's job.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 9 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Test vs contract</b><span>A test checks DATA after the build. A contract checks SHAPE during it, and nothing lands on failure.</span></div>
+      <div class="cheat-item"><b>Contract syntax</b><span><code>contract: enforced: true</code> plus a <code>data_type</code> per column. Constraints add not_null, unique, check - enforcement varies by warehouse.</span></div>
+      <div class="cheat-item"><b>Where contracts belong</b><span>Marts with consumers you cannot edit. Not on staging, never on ephemeral models.</span></div>
+      <div class="cheat-item"><b>Contracts do not check meaning</b><span>Settled revenue can become gross revenue with the name and type intact. That needs a singular test.</span></div>
+      <div class="cheat-item"><b>Exposures</b><span>Declare the dashboards, exports and syncs dbt cannot see. Name an owner. Select with <code>+exposure:name</code>.</span></div>
+      <div class="cheat-item"><b>Docs are data</b><span><code>dbt docs generate</code> writes manifest.json (32 nodes, 47 edges) and catalog.json. This course's lineage explorer reads the manifest.</span></div>
+      <div class="cheat-item"><b>One repo, two targets</b><span><code>ref()</code> resolves per target, so dev and prod differ by a flag rather than a diff.</span></div>
+      <div class="cheat-item"><b>CI vs orchestrator</b><span>CI: build + test <code>state:modified+</code> on the PR. Orchestrator: when prod runs, retries, alerting - that is learn-dataops. Next: b10, the capstone.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 9 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b8-marts-and-questions.html">← Previous: Marts and the business questions</a> &nbsp;·&nbsp; <a href="b10-capstone.html">Next: Capstone - add a subject area →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

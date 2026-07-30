@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 2 · Models as code - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 2 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 2 of 6</div>
+    <h1>Models as <span class="accent">code</span></h1>
+    <p class="sub">Four practices, borrowed wholesale from software engineering, applied to the SQL that now shapes your numbers: version control, review, environments, rollback. Each one prevents a specific failure you have probably lived through. Each one also costs something real, and on a small estate the cost is larger than the benefit. This session gives you both halves honestly, plus the precondition nobody mentions in a vendor meeting: somebody has to actually read the change. A team that will not review gets the entire cost of this and none of the protection.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-16 · The four practices, and what each prevents</span>
+      <span class="a4" style="flex:5">16-30 · What it costs, and the precondition</span>
+      <span class="a3" style="flex:4">30-42 · Discussion: the review-culture test</span>
+      <span class="a1" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>What this session is actually deciding</h2>
+    </div>
+    <p class="lede">Session <a href="a1-why-analytics-engineering.html">a1</a> established that transformation moved into the warehouse and became SQL that somebody has to own. This session is about the <em>how</em>: the specific working practices that make owning it possible, what each one buys, and what each one costs a team that has never had them.</p>
+    <p class="lede">Keep one framing in mind throughout. None of the four practices below is a feature of dbt or of any other tool. They are software-engineering practices that are forty years old, and the only contribution the tooling makes is to render SQL <strong>eligible</strong> for them: files on disk, in a repository, that a build step turns into tables. That is why the categories in this session outlive the products, and why a leader who learns them does not have to relearn this when the tool changes.</p>
+    <p class="lede">Everything measured here comes from this course's own project, where the same marketplace warehouse exists twice: once hand-written as 8 SQL files with a 27-check Python validator, once as a dbt project with 23 models, 100 tests, 1 snapshot and 8 declared sources. Both produce settled net revenue of 111,906.48 over 957 orders, AOV 116.93, identical to the cent. The second version is not more accurate. It is more changeable, and this session is about what "more changeable" is worth.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your own team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      Four practices you can name and defend, the specific failure each one prevents, an honest cost line you can quote to a finance partner, the model count where the argument stops being close, and the single cultural question that determines whether any of it works at your company.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: THE FOUR PRACTICES ============ -->
+  <section class="section" id="practices">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers software-engineering practice applied to SQL</span>
+      <h2>The four practices, and what each prevents <span class="tag concept">13 min live</span></h2>
+    </div>
+    <p class="lede">Take each one in turn as a leader would: not "what does it do" but "which meeting does it stop me having". They are worth learning in this order, because each one depends on the one before it.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 378" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four practices applied to SQL and the specific failure each one prevents">
+        <style>
+          .prT { font: 700 13px Inter, sans-serif; fill: #22222A; }
+          .prL { font: 700 10.5px Inter, sans-serif; fill: #D94E24; }
+          .prC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .prH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .prN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="402" height="112" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="prT" x="44" y="52">1 · Version control</text>
+        <text class="prL" x="44" y="76">PREVENTS</text>
+        <text class="prC" x="44" y="98">A definition change becomes a diff somebody</text>
+        <text class="prC" x="44" y="118">reviewed, not a discovery in a dashboard.</text>
+
+        <rect x="452" y="26" width="402" height="112" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="prT" x="470" y="52">2 · Review</text>
+        <text class="prL" x="470" y="76">PREVENTS</text>
+        <text class="prC" x="470" y="98">A wrong grain caught in a pull request costs</text>
+        <text class="prC" x="470" y="118">minutes. Caught in a board pack, it costs trust.</text>
+
+        <rect x="26" y="152" width="402" height="112" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="prT" x="44" y="178">3 · Environments</text>
+        <text class="prL" x="44" y="202">PREVENTS</text>
+        <text class="prC" x="44" y="224">Dev and prod from the same code, so a change</text>
+        <text class="prC" x="44" y="244">can be tried in full before anyone sees it.</text>
+
+        <rect x="452" y="152" width="402" height="112" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="prT" x="470" y="178">4 · Rollback</text>
+        <text class="prL" x="470" y="202">PREVENTS</text>
+        <text class="prC" x="470" y="224">Revert one commit instead of reconstructing</text>
+        <text class="prC" x="470" y="244">from memory what the SQL used to say.</text>
+
+        <rect x="26" y="278" width="828" height="84" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="prH" x="46" y="304">None of the four is a dbt feature</text>
+        <text class="prN" x="46" y="328">They are software-engineering practices, forty years old. The tool's only contribution is to make SQL eligible</text>
+        <text class="prN" x="46" y="348">for them: files in a repository that a build step turns into tables. The categories outlive the products.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - four practices, four specific failures they stop</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Practice</th><th>What it means in practice</th><th>What it prevents</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Version control</td>
+          <td>Every model is a file in a repository. Every change to it is a recorded, attributed, timestamped difference against what it said before, with the author's stated reason attached.</td>
+          <td>The definition change nobody knew about. A change to what a word means arrives as a diff somebody reviewed, rather than as a stakeholder asking on Thursday why the number moved on Tuesday.</td>
+        </tr>
+        <tr>
+          <td>Review</td>
+          <td>A change is proposed, read by a second person and discussed before it becomes real. Small, specific, and about one thing, because the diff shows exactly what moved.</td>
+          <td>Expensive discovery. The cheapest place to catch a wrong grain, a double-counting join or a filter that quietly excludes a segment is a pull request, where it costs somebody ten minutes.</td>
+        </tr>
+        <tr>
+          <td>Environments</td>
+          <td>The same code builds a development copy and the production copy. A person can build the whole estate with their change in it, look at the resulting numbers, and only then ship.</td>
+          <td>The estate nobody dares change. Hand-written warehouses that cannot be rebuilt anywhere except in production are exactly the ones that freeze, because every change is a live experiment on the business.</td>
+        </tr>
+        <tr>
+          <td>Rollback</td>
+          <td>Undo is reverting one recorded change and rebuilding. Not archaeology, not a rewrite, and not a meeting about what the logic used to be.</td>
+          <td>The two-day incident. Recovery time stops depending on whether the person who made the change is available, awake, or still employed here.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Review is the one that carries the others<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>If you only fund one of the four, fund review, because the other three are largely mechanical and review is the only one that requires a human habit. It is also where the money is: the cost of a modelling mistake scales with how far it travels before somebody notices.</p>
+        <ul>
+          <li><strong>Caught in review:</strong> a colleague spends ten minutes reading a diff and says "this is at order grain, not order-item grain, so the revenue will double-count for multi-line orders". Cost: ten minutes and a slightly awkward comment thread.</li>
+          <li><strong>Caught in a dashboard, a fortnight later:</strong> somebody notices revenue looks high. Now it is an investigation, a correction, a decision about whether to restate, and a conversation with everybody who saw the wrong number. Cost: days, spread across people who did not make the mistake.</li>
+          <li><strong>Caught by a stakeholder in a board pack:</strong> the number is now a credibility event rather than a bug. Cost: not measurable in hours, and it lands on you rather than on the team.</li>
+        </ul>
+        <p>Nothing about that ladder is specific to data. It is the reason software teams review code, and the reason they did not have to be argued into it twice.</p>
+        <div class="callout tip">
+          <strong>The leader's version of this</strong>
+          You do not need to read diffs. You need to know that every change to a model people build on was read by a second person, and to notice when the answer becomes "usually" or "for the important ones". Both of those answers mean no.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Environments, and the estate nobody dares change<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This is the practice leaders under-weight, because it sounds like infrastructure hygiene. It is not. It is the difference between an estate that can evolve and one that has quietly frozen.</p>
+        <p>Ask yourself what happens today when somebody wants to change how a shared metric is calculated. In an estate with environments, they build the whole thing in a development copy with their change in it, compare the numbers before and after, show somebody, and ship. In an estate without environments, the only way to see the effect of the change is to make it in production and look at the dashboard afterwards.</p>
+        <p>The second situation does not usually produce disasters. It produces something quieter and more expensive: <strong>nobody changes anything.</strong> The team accumulates workarounds instead, a parallel table here, a spreadsheet correction there, because a new object beside the old one is safe and editing the old one is not. That is how a warehouse ends up with three revenue tables, none of which anybody is allowed to delete.</p>
+        <p>This course's project can be rebuilt from nothing in 1.22 seconds, which is a laptop-scale number rather than an enterprise one, but the property it demonstrates is the one that matters: a full rebuild is a routine act rather than an event.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why version control matters more for definitions than for SQL<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>There is a version of this argument that is only about engineering tidiness, and it is not the interesting one. The interesting one is about institutional memory.</p>
+        <p>When a definition lives in a file under version control, three things become true that were not true before. First, the change is <em>attributed</em>: a specific person changed what "settled revenue" means on a specific date. Second, the change has a <em>stated reason</em>, because somebody had to write one to get it merged. Third, the previous version still exists, so "what did this mean in March" is a question with an answer rather than a discussion.</p>
+        <p>Consider how you would answer an auditor, a regulator or a new chief financial officer asking why a reported figure changed between two quarters. In a hand-written estate the honest answer is that somebody edited a script and the reasoning is in their head. Under version control the answer is a change, an author, a date, a reason and a reviewer. That is not tidiness, that is a governance artifact, and it is the same argument session <a href="a3-tests-as-trust.html">a3</a> makes about tests.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: THE COST ============ -->
+  <section class="section" id="cost">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the honest half</span>
+      <h2>What it costs, and where the trade flips <span class="tag concept">9 min live</span></h2>
+    </div>
+    <p class="lede">Any account of this that does not lead with the cost is a sales pitch. The four practices are not free, they are not culturally free either, and there is a real range of estate sizes where adopting them is the wrong decision. Knowing where that range ends is most of the value of this session.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 336" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="What models-as-code costs against what it buys, and where the trade-off flips by model count">
+        <style>
+          .csT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .csC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .csH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .csK { font: 700 11.5px Inter, sans-serif; fill: #22222A; }
+          .csN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="402" height="42" rx="8" fill="#2B2B33"/>
+        <text class="csT" x="44" y="53">What it costs</text>
+        <rect x="26" y="68" width="402" height="118" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="csC" x="44" y="94">A build step between an idea and a table</text>
+        <text class="csC" x="44" y="116">A Python dependency to install, pin and upgrade</text>
+        <text class="csC" x="44" y="138">Templating inside the SQL, so SQL alone is</text>
+        <text class="csC" x="44" y="158">no longer enough to read a model</text>
+        <text class="csC" x="44" y="178">A team that has to learn all three at once</text>
+
+        <rect x="452" y="26" width="402" height="42" rx="8" fill="#3F7F72"/>
+        <text class="csT" x="470" y="53">What it buys</text>
+        <rect x="452" y="68" width="402" height="118" rx="8" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="csC" x="470" y="94">Dependency order derived, never maintained</text>
+        <text class="csC" x="470" y="116">Tests that run on every build, not on request</text>
+        <text class="csC" x="470" y="138">One reviewable diff per definition change</text>
+        <text class="csC" x="470" y="158">A full rebuild as a routine act, not an event</text>
+        <text class="csC" x="470" y="178">Documentation generated from the same files</text>
+
+        <rect x="26" y="204" width="828" height="112" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="csH" x="46" y="230">Where the trade actually sits</text>
+        <text class="csK" x="46" y="258">Under about 5 models</text>
+        <text class="csN" x="46" y="278">Bad trade. The overhead is</text>
+        <text class="csN" x="46" y="298">most of the work.</text>
+        <text class="csK" x="326" y="258">Somewhere in between</text>
+        <text class="csN" x="326" y="278">Depends entirely on review</text>
+        <text class="csN" x="326" y="298">culture. See Part 3.</text>
+        <text class="csK" x="606" y="258">Past 15 to 20, 2+ editors</text>
+        <text class="csN" x="606" y="278">It stops being close.</text>
+        <text class="csN" x="606" y="298">Fund it.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the cost is real, and so is the point where it stops mattering</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The cost line, stated plainly enough to quote<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Four costs, and it is worth being able to say all four out loud without flinching, because a team that has been sold this without them will resent it later.</p>
+        <ul>
+          <li><strong>A build step.</strong> There is now a thing that has to run between writing SQL and having a table. It can fail. Somebody has to understand why it failed. On the day of a deadline this is genuinely annoying, and pretending otherwise loses you credibility with the people who feel it.</li>
+          <li><strong>A dependency to manage.</strong> The tooling is software: it needs installing, pinning to a version, and upgrading occasionally, and upgrades sometimes require changes. This course's project runs on dbt-core 1.12.0 with dbt-duckdb 1.10.1, and one deprecation had to be fixed during the build. That is normal and it is a real, recurring cost, not a one-off.</li>
+          <li><strong>Templating in the SQL.</strong> Models stop being pure SQL. They contain a little templating language that turns a reference into a table name at build time. This is what buys the derived dependency order, and it means SQL fluency alone no longer makes somebody able to read a model. Your analysts will notice this first.</li>
+          <li><strong>A team learning all three at once.</strong> The largest cost by a distance, and the one nobody puts on the slide. Version control, review workflow and a build tool, arriving together, at a team whose current workflow is editing a script. Budget a quarter of reduced output, not a training afternoon.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>Say this to your team before you decide</strong>
+          "We are going to be slower for a quarter and I know it." That sentence buys more goodwill than any amount of enthusiasm about the destination, and it is also true.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Five models versus twenty: why the number matters<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>On five models maintained by one person, all four practices are overhead with almost nothing on the other side. There is no dependency order worth deriving, because the person knows it. There is nobody to review, because there is nobody else. The build step is pure friction, and rollback is "undo my last edit". Adopting the full apparatus here is a real mistake, and it is a mistake made often, usually because somebody read about the modern data stack rather than counted their own models.</p>
+        <p>Somewhere past fifteen to twenty models with more than one editor, every term in that calculation inverts. Nobody holds the dependency order in their head any more, so it has to be either derived or written down and maintained, and maintained runbooks go stale. Two editors means changes collide, which means review has something to catch. The build step now saves more time than it costs, because rebuilding by hand in the right order is the expensive part.</p>
+        <p>Two clarifications that matter when you use this number in an argument. It is a range and not a threshold, so treat fifteen to twenty as the zone where you should start actively deciding rather than a line that triggers a purchase. And the model count is the weaker half of the test: <strong>the number of editors is the stronger half</strong>, because one careful person can hold forty models together for years, and three people editing eight models cannot.</p>
+        <div class="callout tip">
+          <strong>The forward pointer</strong>
+          Once you have decided the practices are worth it, the next question is what to buy and what to run yourself, including the Core versus Cloud decision. That is entirely session <a href="a4-buy-vs-build.html">a4</a>, and it deserves its own forty-five minutes.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What the hand-written estate could not do<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Worth being precise about, because the honest list is shorter than the marketing list and more persuasive for it. The hand-written version of Bazaar is 8 SQL files and a Python validator with 27 checks. It is competent work. What it structurally cannot do:</p>
+        <ul>
+          <li><strong>It cannot be built anywhere except where it is built.</strong> The script names its tables directly, so there is no cheap way to produce a complete second copy of the estate for a person to try a change in.</li>
+          <li><strong>It does not know what depends on what.</strong> The order is the order the statements happen to be in, maintained by a human. Add a model in the wrong place and it silently reads yesterday's data.</li>
+          <li><strong>Its checks run when somebody remembers.</strong> Twenty-seven checks that are not attached to the build are twenty-seven checks that run on good days.</li>
+          <li><strong>It cannot answer "what did this used to say".</strong> Not because nobody wrote it down, but because there is nowhere for it to be written down.</li>
+        </ul>
+        <p>The dbt version fixes all four, and produces exactly the same 111,906.48. That is the whole trade in one paragraph: no accuracy gain, four structural capabilities, in exchange for the four costs above.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: THE PRECONDITION ============ -->
+  <section class="section" id="precondition">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · the part that is your job, not the tool's</span>
+      <h2>The cultural precondition, and blast radius <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">Here is the sentence to take out of this session if you take only one. <strong>Somebody has to review.</strong> Every benefit in Part 1 except rollback depends on a second person actually reading the change, and no tool can supply that. Two organisations can adopt identical tooling and get opposite outcomes, and the variable is not skill.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Same tooling, two teams: one that reviews and one that does not, and the blast radius warning">
+        <style>
+          .fkT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .fkC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .fkH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .fkN { font: 600 11.5px Inter, sans-serif; fill: #991B1B; }
+        </style>
+
+        <text class="fkH" x="26" y="24">Same tooling. The only difference is whether anybody reads the diff.</text>
+
+        <rect x="26" y="36" width="402" height="40" rx="8" fill="#3F7F72"/>
+        <text class="fkT" x="44" y="62">A team that reviews</text>
+        <rect x="26" y="76" width="402" height="90" rx="8" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="fkC" x="44" y="102">Gets all four practices. Mistakes are caught by</text>
+        <text class="fkC" x="44" y="122">a colleague in minutes, definitions get argued</text>
+        <text class="fkC" x="44" y="142">about before they ship, and two people always</text>
+        <text class="fkC" x="44" y="160">understand every model.</text>
+
+        <rect x="452" y="36" width="402" height="40" rx="8" fill="#2B2B33"/>
+        <text class="fkT" x="470" y="62">A team that will not review</text>
+        <rect x="452" y="76" width="402" height="90" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="fkC" x="470" y="102">Pays every cost and collects one benefit.</text>
+        <text class="fkC" x="470" y="122">Approvals arrive in seconds without being read,</text>
+        <text class="fkC" x="470" y="142">so the pull request is just a slower way to</text>
+        <text class="fkC" x="470" y="160">push straight to production.</text>
+
+        <rect x="26" y="184" width="828" height="98" rx="9" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="fkH" x="46" y="210">Blast radius, stated honestly</text>
+        <text class="fkN" x="46" y="234">Models as code makes a good model cheaper to maintain and a bad model faster to spread everywhere,</text>
+        <text class="fkN" x="46" y="254">in seconds, on the next build. One wrong definition in a shared model reaches every mart and every</text>
+        <text class="fkN" x="46" y="274">dashboard that depends on it, consistently and immediately. Consistency cuts both ways.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the precondition, and the risk that comes with it</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>How to tell whether your team will actually review<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Not by asking, because everybody says yes. Three signals are worth more than the answer:</p>
+        <ul>
+          <li><strong>Does anybody currently read anything?</strong> Not code, necessarily. A team where two people read each other's dashboard logic before publishing already has the habit and will transfer it. A team where nothing is ever read by a second person will not acquire the habit because a tool arrived.</li>
+          <li><strong>Is there slack in the week?</strong> Review is a real time cost that produces nothing visible, so it is the first thing dropped by a team running at capacity. If every hour is committed to delivery, review will be performed rather than done, and performed review is the worst of all worlds because it produces the paperwork of safety without the safety.</li>
+          <li><strong>Does disagreement survive seniority?</strong> If a junior analyst can say "this looks wrong to me" to your most senior engineer and expect a real answer, review will work. If not, reviews become approvals, and approvals catch nothing.</li>
+        </ul>
+        <p>All three of those are things you control and the tooling does not. Which is the uncomfortable conclusion of this session: the largest determinant of whether this investment pays off is not the tool, the vendor or the model count. It is whether you have built a team where somebody can say no to a change, and whether you have left them the time to do it.</p>
+        <div class="callout tip">
+          <strong>The cheapest possible start</strong>
+          Before any tooling decision, introduce review on your current estate. Two people, one rule: no change to a shared transformation without a second pair of eyes, even if the review happens over a shared screen. If that survives a month, the rest is mechanical. If it does not, no purchase will rescue it.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Blast radius: the risk this creates<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Close on this rather than on the benefits, because it is the part your risk-minded colleagues will find on their own and it is better coming from you.</p>
+        <p>A hand-written estate fails slowly and visibly. Somebody's query diverges from somebody else's, people argue in a meeting, and eventually a person digs in and finds the difference. Slow, embarrassing, expensive in aggregate, but the damage is contained by the fact that nothing is really shared.</p>
+        <p>An estate built as code fails quickly and consistently. One wrong definition in a shared upstream model propagates to every mart and every dashboard downstream of it, on the next build, in seconds. The traceability is genuinely much better and the blast radius is genuinely much larger, and both of those follow from the same property: everything derives from one definition in one place.</p>
+        <p>So the honest closing sentence of this session is: <strong>models as code makes a good model cheaper to maintain and a bad model faster to spread everywhere.</strong> That is not an argument against it. It is an argument for the two things that limit the damage: a review habit, which is Part 3, and a test suite that stops a bad build before anybody sees it, which is all of session <a href="a3-tests-as-trust.html">a3</a>. Formal interfaces between models, so a downstream consumer cannot be broken silently, are builder session <a href="b9-contracts-docs-ci.html">b9</a> and get their leadership treatment in <a href="a5-team-shape.html">a5</a>.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discussion">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 12 min · everybody talks</span>
+      <h2>The review-culture test <span class="tag demo">★ run this with your own team</span></h2>
+    </div>
+    <p class="lede">Two exercises, both verbal, both designed for a meeting already on your calendar. The first is a post-mortem of a change you have already made, which is the most honest evidence available. The second is a commitment test, and the point of it is to find out whether the answer is no before you spend money.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Pick a real change, not a hypothetical one.</strong> The last definition change that shipped, whatever it was. Hypotheticals get the answer people wish were true.</p></div>
+      <div class="step"><p><strong>Walk the four practices against it in order.</strong> Where was it written, who read it, was it tried anywhere first, how would you have put it back. Four questions, one change.</p></div>
+      <div class="step"><p><strong>Then ask the naming question, and wait through the silence.</strong> Who will review every model change, and what will they stop doing to make room. The pause before the answer is the finding.</p></div>
+      <div class="step"><p><strong>Record which of the four you already have.</strong> Most teams have one and a half. That is your starting point and your honest baseline for the a4 decision.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · Walk one real change through the four practices<span class="mini">7 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"Take the last change we made to what a number means. Walk me through four things: where was the change written down, who read it before it went live, was it tried anywhere before production, and how would we have put it back if it had been wrong?"</p>
+        <h4>What a good answer sounds like</h4>
+        <p>Four specific answers, even if two of them are bad. "It was a commit on a branch, Sam reviewed it, we did not try it anywhere because we do not have a dev target, and putting it back would be reverting the commit and rebuilding." That team has version control, review and rollback but no environments, which is a common and very fixable shape. The value of the exercise is that it produces a precise gap rather than a general unease, and a precise gap is something you can fund.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>An answer that is really about the outcome rather than the process: "it went fine". Ask again, about the process. The second failure mode is the answer that sounds complete but collapses on the third question, which is almost always environments, because that is the practice teams skip while believing they have adopted everything. Listen for "well, we looked at the numbers afterwards" - that is production being the development environment, said politely.</p>
+        <div class="callout tip">
+          <strong>Why this exercise works better than an audit</strong>
+          It is about one change everybody remembers, so nobody has to generalise or defend the whole estate. You will learn more from four answers about one change than from an hour of discussion about practices in the abstract.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · The naming question<span class="mini">7 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"If we adopt this next quarter, name the person who will read every model change before it ships. Then tell me what that person is going to stop doing to make room for it."</p>
+        <h4>What a good answer sounds like</h4>
+        <p>A name, and a sacrifice. "Priya, and she stops owning the weekly marketing refresh, which moves to Tom." That is a team that has understood the cost. A second good answer is a boundary: "Priya, but only for the shared models, and anything in a personal schema does not need review." That is better than universal review that nobody sustains, because a rule that fits in the week is a rule that survives the quarter.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>"We will all review each other's work." No individual has been made responsible, so review becomes whoever is least busy, which is whoever cares least. The other failure mode is a name with no sacrifice attached: review then gets added on top of a full week, which means it happens on quiet weeks and stops in exactly the busy periods where changes are riskiest and mistakes are most likely to matter.</p>
+        <div class="callout tip">
+          <strong>The number to write down</strong>
+          Ask what fraction of a week review will take, get a real answer, and hold it. Ten percent of one senior person is a sane figure for a mid-sized estate. If the answer is "hardly any time", nobody has done it before, and you should plan for the true number rather than the hoped-for one.
+        </div>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The two Bazaar estates are the cleanest illustration of this that this course can offer, because both exist and both were written carefully.</strong> The hand-written version is 8 SQL files plus a 27-check Python validator, and it produces the correct numbers today. The dbt version is 23 models, 100 tests, 1 snapshot and 8 declared sources, builds in 1.22 seconds with PASS=121 and ERROR=0, and produces the same 111,906.48 over the same 957 orders, AOV 116.93, identical to the cent.</p>
+      <p>What the second one added is entirely in the four practices. Its dependency order is derived rather than maintained, so nobody keeps a runbook: the lineage graph has 32 nodes and 47 edges and no human drew it. Its 100 tests run on every build instead of when somebody remembers. Every definition change is a reviewable diff. And it can be rebuilt from nothing, which is what makes a development copy possible at all.</p>
+      <p><strong>And the same properties are what make it dangerous.</strong> One wrong definition in a shared staging model reaches all 12 marts on the next build, in about a second. The hand-written estate would have got the same thing wrong more slowly, in fewer places, and more visibly. That is the trade you are approving, and the two things that limit it are review culture and the test suite in <a href="a3-tests-as-trust.html">a3</a>.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="questions">
+    <div class="section-kicker">
+      <span class="klabel">Take this away</span>
+      <h2>Questions to ask your data team <span class="tag concept">7 questions</span></h2>
+    </div>
+    <p class="lede">All seven are answerable without showing you any SQL, and all seven are about process rather than competence, which is why teams answer them honestly.</p>
+
+    <table class="clean">
+      <thead><tr><th>Ask this</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"Show me the last change to a shared model and tell me who read it before it shipped."</td>
+          <td>Tests version control and review in one question, using evidence rather than intent. A team with both answers in twenty seconds. A team without them starts explaining, and the explanation is the answer.</td>
+        </tr>
+        <tr>
+          <td>"Can somebody build the whole estate with a change in it, look at the numbers, and only then ship?"</td>
+          <td>The environments question, phrased as a capability rather than a tool. Note whether the answer distinguishes "we can build one model" from "we can build the estate", because only the second one lets you see a knock-on effect.</td>
+        </tr>
+        <tr>
+          <td>"If a definition change turned out to be wrong on Friday, what happens on Friday?"</td>
+          <td>Tests rollback as recovery time rather than as a feature. Listen for whether the answer depends on a particular person being available, because that dependency is the actual risk and it usually goes unnamed.</td>
+        </tr>
+        <tr>
+          <td>"How much of somebody's week is review, and whose week is it?"</td>
+          <td>Converts a cultural claim into a number and an owner. Zero hours means no review, whatever the workflow diagram says. An unnamed owner means review happens when the week is quiet, which is not when you need it.</td>
+        </tr>
+        <tr>
+          <td>"What is the largest number of models one of our transformations produces, and how many people edit it?"</td>
+          <td>Locates you against the fifteen-to-twenty range from Part 2. The editor count is the more important half, and asking for both in one breath stops the conversation collapsing into model count alone.</td>
+        </tr>
+        <tr>
+          <td>"If we got one definition wrong upstream, how many dashboards would show the wrong number, and how fast?"</td>
+          <td>The blast radius question. A team that can answer has lineage and understands the risk. A team that cannot answer has the same risk without the visibility, which is strictly worse, and the question surfaces that without an accusation.</td>
+        </tr>
+        <tr>
+          <td>"What would we be slower at for the first quarter, and what would we stop doing?"</td>
+          <td>Asks for the adoption cost in the team's own words. If they say nothing will get slower, they have not done this before, and you have just learned the most important thing about the plan you are being asked to approve.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session a3 <span class="tag exercise">◐ 30-40 min total, all conversations</span></h2>
+    </div>
+    <ul>
+      <li>Run Exercise 1 against a real change and write down which of the four practices you actually have. Most teams have one and a half. Keep the note, because <a href="a4-buy-vs-build.html">a4</a> is unanswerable without it.</li>
+      <li>Introduce review on your current estate this week, before any tooling decision. Two named people, one rule: no change to a shared transformation without a second pair of eyes. It costs nothing and it tells you whether the rest is viable.</li>
+      <li>Ask what would happen if somebody wanted to change your most-used metric today, and listen for whether the answer involves production. If it does, you have found the environments gap, and it is usually the cheapest of the four to close.</li>
+      <li>Find out whether your team can currently rebuild the whole estate from nothing. Not whether they would, whether they could. The answer predicts how frozen your estate is better than any other single question.</li>
+      <li>Ask your team what the largest number of dashboards a single upstream definition feeds is. Bring the number to <a href="a3-tests-as-trust.html">a3</a>, because that is the blast radius the test suite exists to contain.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Software-engineering practice applied to SQL - version control, review, environments, rollback, blast radius</span><span class="note">Parts 1-3 · the four practices, the four costs, and the cultural precondition</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The community layering conventions - why a stated layer boundary is what makes review cheap</span><span class="note">Part 1 · as the reason a diff is readable; builder <a href="b3-sources-and-staging.html">b3</a> builds the layers</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation - models, materializations, project config</span><span class="note">Named as the mechanism only, no syntax here · builder <a href="b1-hand-written-to-project.html">b1</a> and <a href="b2-project-config.html">b2</a> run it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation - model contracts as a limit on blast radius</span><span class="note">Part 3 names the mitigation only · builder <a href="b9-contracts-docs-ci.html">b9</a> builds contracts, leader <a href="a5-team-shape.html">a5</a> owns who signs them</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - grain, which is the mistake review most often catches</span><span class="note">Used as the example in Part 1 only; the model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Continuous integration - what runs automatically on a proposed change</span><span class="note">Named as the natural next step · builder <a href="b9-contracts-docs-ci.html">b9</a> wires it, <a href="a3-tests-as-trust.html">a3</a> decides what should block it</span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Your team runs six models, one person edits them, and they are asking to adopt the full models-as-code apparatus. What is the defensible answer?</p>
+      <button class="qopt" type="button">A · Approve it, because these practices are always correct</button>
+      <button class="qopt" type="button">B · Refuse it, because six models will never need this</button>
+      <button class="qopt" type="button">C · Not yet, and be specific about the trigger: a second regular editor, or a model count heading past fifteen to twenty</button>
+      <p class="qwhy">On six models with one editor there is no dependency order worth deriving and nobody to review, so all four practices are overhead. A "not yet" with a stated trigger keeps the decision alive and stops it becoming a fight later. The editor count is the stronger half of the trigger.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · A team adopts version control, environments and rollback, but every pull request is approved within seconds without being read. What have they bought?</p>
+      <button class="qopt" type="button">A · Every cost of the four practices and one benefit, since an unread approval is just a slower way to push to production</button>
+      <button class="qopt" type="button">B · Most of the benefit, since the tooling still enforces the workflow</button>
+      <button class="qopt" type="button">C · Nothing at all, since the practices are worthless without review</button>
+      <p class="qwhy">Rollback survives without review, so the answer is not "nothing". But every benefit that depends on a second person seeing the change before it ships is gone, and the team is paying the full learning and process cost for it. A leader can supply the review habit; no tool can.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · A colleague says moving to models-as-code will reduce the risk of a wrong number reaching a dashboard. How should you correct that?</p>
+      <button class="qopt" type="button">A · They are right, because tested code is safer than hand-written SQL</button>
+      <button class="qopt" type="button">B · It cuts the chance of a mistake surviving review, but widens the reach of one that does: a bad definition hits every downstream dashboard on the next build, in seconds</button>
+      <button class="qopt" type="button">C · They are wrong, because the risk is unchanged either way</button>
+      <p class="qwhy">Traceability improves and blast radius grows, and both follow from the same property: everything derives from one definition in one place. Saying this out loud is what makes the test suite in a3 and the review habit in Part 3 fundable rather than optional.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Leader session 2 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Version control</b><span>A definition change is a diff somebody reviewed, not a discovery in a dashboard. Attributed, dated, with a stated reason.</span></div>
+      <div class="cheat-item"><b>Review</b><span>The cheapest place to catch a wrong grain is a pull request. The most expensive is a board pack.</span></div>
+      <div class="cheat-item"><b>Environments</b><span>Dev and prod from the same code. Estates that cannot do this are the ones nobody dares change.</span></div>
+      <div class="cheat-item"><b>Rollback</b><span>Revert a commit instead of reconstructing what the SQL used to say. Recovery stops depending on one person.</span></div>
+      <div class="cheat-item"><b>The cost, honestly</b><span>A build step, a Python dependency, templating in the SQL, and a team learning all three at once. Budget a slower quarter.</span></div>
+      <div class="cheat-item"><b>Where it flips</b><span>Bad trade under five models with one editor. Stops being close past fifteen to twenty with two or more editors.</span></div>
+      <div class="cheat-item"><b>The precondition</b><span>Somebody has to review. A team that will not gets the whole cost and none of the protection.</span></div>
+      <div class="cheat-item"><b>Blast radius</b><span>A good model gets cheaper to maintain; a bad one spreads everywhere in seconds on the next build. Next: <a href="a3-tests-as-trust.html">a3</a>, what stops it.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 2 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="a1-why-analytics-engineering.html">← Previous: Why analytics engineering exists</a> &nbsp;·&nbsp; <a href="a3-tests-as-trust.html">Next: Tests as the trust budget →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

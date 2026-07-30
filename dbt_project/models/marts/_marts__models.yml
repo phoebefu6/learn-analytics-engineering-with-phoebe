@@ -1,0 +1,177 @@
+version: 2
+
+models:
+  # ---------------------------------------------------------------- dimensions
+  - name: dim_dates
+    description: Generated calendar, 2026-03-01 to 2026-09-30. Never sourced from an application.
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: dim_time_of_day
+    description: 24 rows, hour grain. Separate from dim_dates on purpose.
+    columns:
+      - name: time_key
+        tests: [unique, not_null]
+      - name: daypart
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['overnight', 'morning', 'lunch', 'afternoon', 'evening', 'late']
+
+  - name: dim_users
+    description: Type 1 dimension - attributes overwritten in place.
+    columns:
+      - name: user_sk
+        tests: [unique, not_null]
+      - name: user_id
+        tests: [unique, not_null]
+      - name: tenure_bucket
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['new', '3-12m', '1y+']
+
+  - name: dim_merchants
+    description: >
+      Current-version view of the merchant dimension. History lives in the
+      snapshots/merchants_snapshot.sql type-2 snapshot, which is what session b6 builds.
+    columns:
+      - name: merchant_sk
+        tests: [unique, not_null]
+      - name: merchant_id
+        tests: [unique, not_null]
+      - name: commission_pct
+        tests: [not_null]
+
+  - name: dim_products
+    description: Flat and wide - carries merchant_name so analysts and agents lose a join.
+    columns:
+      - name: product_sk
+        tests: [unique, not_null]
+      - name: product_id
+        tests: [unique, not_null]
+      - name: price_tier
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['budget', 'mid', 'premium']
+
+  - name: dim_payment_methods
+    description: Raw method strings mapped to the grouping the business actually says.
+    columns:
+      - name: payment_method_sk
+        tests: [unique, not_null]
+      - name: method_family
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['card', 'bank', 'wallet', 'unknown']
+
+  # ---------------------------------------------------------------- facts
+  - name: fct_order_items
+    description: |
+      GRAIN: one row per product line on one order. The revenue fact.
+      Never join this to fct_transactions - different grains. Aggregate each first
+      (int_payments_per_order does exactly that) or join through a conformed dimension.
+    tests:
+      - unique_combination:
+          arguments:
+              columns: ['order_id', 'line_no']
+    columns:
+      - name: order_item_sk
+        tests: [unique, not_null]
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                  to: ref('dim_dates')
+                  field: date_key
+      - name: merchant_sk
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('dim_merchants')
+                  field: merchant_sk
+      - name: product_sk
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('dim_products')
+                  field: product_sk
+      - name: user_sk
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('dim_users')
+                  field: user_sk
+      - name: net_amount
+        description: Gross minus discount. THE revenue measure. Additive.
+        tests: [not_null]
+      - name: units
+        tests: [dbt_positive_value]
+
+  - name: fct_transactions
+    description: |
+      GRAIN: one row per payment attempt. An order can appear several times: a decline, a
+      retry that succeeds, a refund later.
+    columns:
+      - name: txn_sk
+        tests: [unique, not_null]
+      - name: txn_id
+        tests: [unique, not_null]
+      - name: payment_method_sk
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('dim_payment_methods')
+                  field: payment_method_sk
+      - name: decline_reason
+        tests: [not_null]
+
+  - name: fct_carts
+    description: |
+      GRAIN: one row per cart. Demand, including demand that never converted.
+      cart_value is LIST value, not revenue - a converted cart will not equal its order to
+      the cent, by design, because orders carry discounts.
+    columns:
+      - name: cart_sk
+        tests: [unique, not_null]
+      - name: cart_id
+        tests: [unique, not_null]
+      - name: merchant_sk
+        description: >
+          The cart's DOMINANT merchant - the one on its highest-value line. A mixed cart
+          therefore credits all of its abandonment to one merchant. Known limitation.
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('dim_merchants')
+                  field: merchant_sk
+
+  # ---------------------------------------------------------------- marts
+  - name: mart_merchant_daily
+    description: GRAIN one merchant per day. Settled money only.
+    tests:
+      - unique_combination:
+          arguments:
+              columns: ['activity_date', 'merchant_id']
+    columns:
+      - name: net_revenue
+        tests: [not_null]
+
+  - name: mart_funnel_daily
+    description: GRAIN one day. Carts, conversion, orders, revenue and declines side by side.
+    columns:
+      - name: activity_date
+        tests: [unique, not_null]
+
+  - name: mart_hourly_transactions
+    description: GRAIN one date-hour. Peak-hour and staffing questions.
+    tests:
+      - unique_combination:
+          arguments:
+              columns: ['activity_date', 'hour_24']

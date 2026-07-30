@@ -1,0 +1,14 @@
+# built by python/load_raw.py - rebuild with the commands in the README
+bazaar.duckdb
+
+# dbt build output. The site's browser assets are generated FROM these by
+# python/build_browser_assets.py and are committed, so a clone does not need them -
+# run `dbt build && dbt docs generate` to recreate.
+dbt_project/target/
+dbt_project/logs/
+dbt_project/dbt_packages/
+
+.venv-dbt/
+__pycache__/
+*.pyc
+.DS_Store

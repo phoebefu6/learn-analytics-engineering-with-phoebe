@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 4 · ref() and the DAG - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 4 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 4 of 10</div>
+    <h1><code style="font-size:.82em">ref()</code> and <span class="accent">the DAG</span></h1>
+    <p class="sub">Two functions do most of dbt's work. <code>source()</code> names a raw table once, and <code>ref()</code> names another model - and because you never write a table name, dbt can derive the entire dependency graph from the SQL itself. That graph decides build order, decides what runs in parallel, decides what gets skipped when a test fails, and tells you exactly what breaks if you rename a column. This session explores the real graph from this project's manifest: 32 nodes, 47 edges, nobody drew it.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Live lineage from manifest.json</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · ref, source, and compilation</span>
+      <span class="a3" style="flex:5">18-42 · Explore the graph, read the impact sets</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The trade you are making</h2>
+    </div>
+    <p class="lede">Writing <code>{{ ref('stg_bazaar__orders') }}</code> instead of <code>main_staging.stg_bazaar__orders</code> looks like ceremony. It buys four things you cannot get any other way: build order you never maintain, parallelism that is safe by construction, a stop signal when something upstream fails, and an answer to "what breaks if I change this" that is derived rather than remembered.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live lineage &amp; SQL</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A working understanding of compilation (what you write versus what the warehouse runs), the four things the DAG buys you, fluency with dbt's selector syntax, and the habit of checking an impact set before you rename anything.
+    </div>
+  </section>
+
+  <section class="section" id="compile">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on ref, source and compilation</span>
+      <h2>Compilation, in one picture <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">dbt is a templating engine plus a graph. Your model is SQL with a little Jinja; compilation resolves the Jinja into a plain query the warehouse understands, and records what it referenced along the way. That recording is the graph.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 316" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Compilation: model source with ref becomes compiled SQL with real table names, and the reference is recorded as a graph edge">
+        <style>
+          .cpT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .cpH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .cpC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .cpM { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .cpN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .cpArr { stroke: #D94E24; stroke-width: 2.5; fill: none; marker-end: url(#cpAh); }
+        </style>
+        <defs>
+          <marker id="cpAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#D94E24"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="28" width="256" height="38" rx="8" fill="#2B2B33"/>
+        <text class="cpT" x="44" y="53">1 · What you write</text>
+        <rect x="26" y="76" width="256" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="cpM" x="40" y="98">select * from</text>
+        <text class="cpM" x="40" y="118">{{ ref('stg_bazaar__orders') }}</text>
+        <text class="cpC" x="40" y="142">a model name, never a table name</text>
+
+        <rect x="312" y="28" width="256" height="38" rx="8" fill="#D94E24"/>
+        <text class="cpT" x="330" y="53">2 · What dbt compiles</text>
+        <rect x="312" y="76" width="256" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="cpM" x="326" y="98">select * from</text>
+        <text class="cpM" x="326" y="118">"main_staging"."stg_bazaar__orders"</text>
+        <text class="cpC" x="326" y="142">plain SQL, schema-qualified</text>
+
+        <rect x="598" y="28" width="256" height="38" rx="8" fill="#3F7F72"/>
+        <text class="cpT" x="616" y="53">3 · What dbt records</text>
+        <rect x="598" y="76" width="256" height="76" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="cpM" x="612" y="98">edge: stg_bazaar__orders</text>
+        <text class="cpM" x="612" y="118">   -&gt; fct_order_items</text>
+        <text class="cpC" x="612" y="142">one edge of 47 in this project</text>
+
+        <path class="cpArr" d="M282,110 L308,110"/>
+        <path class="cpArr" d="M568,110 L594,110"/>
+
+        <rect x="26" y="178" width="828" height="116" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="cpH" x="46" y="202">What step 3 pays for</text>
+        <text class="cpN" x="46" y="226">build order - derived, so nobody maintains a runbook of what to run first</text>
+        <text class="cpN" x="46" y="246">safe parallelism - independent models run at once because the graph proves they are independent</text>
+        <text class="cpN" x="46" y="266">a stop signal - a failed test SKIPs everything downstream instead of rebuilding on bad data</text>
+        <text class="cpN" x="46" y="286">impact sets - "what breaks if I rename this" answered by walking edges, not by memory</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - one ref() call, three outputs</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>source() versus ref(), and why the difference matters<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong><code>source('bazaar', 'orders')</code></strong> points at a table dbt did not build. It appears in exactly eight places in this project - the eight staging models - because <code>_bazaar__sources.yml</code> is the single place a raw table name is written. When the loader renames something, you edit one file.</li>
+          <li><strong><code>ref('stg_bazaar__orders')</code></strong> points at a model dbt did build. It resolves differently per environment: in your dev target it points at your personal schema, in production at the production schema. The same code, no branching.</li>
+        </ul>
+        <p>That second point is the one people underestimate. Hard-coded table names are why hand-written warehouse SQL cannot be run in a sandbox without editing it - and why nobody tests a change before shipping it. With <code>ref()</code>, dev and prod differ by a target, not by a diff.</p>
+        <div class="callout tip">
+          <strong>The rule</strong>
+          If dbt built it, use <code>ref()</code>. If something else built it, declare it as a source and use <code>source()</code>. A raw table name written directly in a model is always a bug, even when it works.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Selector syntax, the part you will use daily<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Once there is a graph, you can address it. These are the selectors worth memorising:</p>
+        <table class="clean">
+          <thead><tr><th>Command</th><th>What it runs</th></tr></thead>
+          <tbody>
+            <tr><td><code>dbt build</code></td><td>everything - 23 models, 100 tests, 1 snapshot</td></tr>
+            <tr><td><code>dbt build --select fct_order_items</code></td><td>that model and its tests, nothing else</td></tr>
+            <tr><td><code>dbt build --select fct_order_items+</code></td><td>that model and everything downstream of it</td></tr>
+            <tr><td><code>dbt build --select +fct_order_items</code></td><td>that model and everything upstream - the rebuild-from-source path</td></tr>
+            <tr><td><code>dbt build --select staging</code></td><td>a whole folder, by path</td></tr>
+            <tr><td><code>dbt build --select state:modified+</code></td><td>what changed on this branch plus its downstream - the CI selector</td></tr>
+          </tbody>
+        </table>
+        <p>That last one is how a pull request tests only what it touched, which is what makes CI on a 500-model project take minutes rather than hours. Session b9 wires it up.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section" id="explorer">
+    <div class="section-kicker">
+      <span class="klabel">Live lineage · 14 min · everyone explores</span>
+      <h2>The real graph, and what it says <span class="tag demo">★ read from manifest.json</span></h2>
+    </div>
+    <p class="lede">Below is this project's actual dependency graph, read from <code>target/manifest.json</code> after a real build. Click any node: you get its upstream (highlighted pale), its downstream (highlighted red), the impact set spelled out, and both versions of its SQL - what you write, and what dbt compiled.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Start where it opens,</strong> on <code>fct_order_items</code>. Two marts depend on it; fifteen nodes feed it. That asymmetry is what a well-layered project looks like.</p></div>
+      <div class="step"><p><strong>Now click <code>stg_bazaar__orders</code>.</strong> Seven nodes downstream. This is the model you cannot casually rename, and the graph told you so without anybody keeping a list.</p></div>
+      <div class="step"><p><strong>Click a source.</strong> Everything in the project is downstream of some source, which is why a source schema change is the most expensive change there is.</p></div>
+      <div class="step"><p><strong>Compare the two SQL blocks</strong> on any model. The Jinja on top, the compiled query underneath. That is the whole of what dbt did.</p></div>
+    </div>
+
+    <div id="dag-explorer"></div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The graph is the reason a rename becomes a conversation.</strong> In a hand-written estate, renaming a column is a two-minute edit followed by three weeks of breakage discovered one dashboard at a time. Here, <code>dbt build --select stg_bazaar__orders+</code> tells you in advance that seven nodes and their tests are in the blast radius - and CI runs exactly those on the pull request. Same rename, same risk, completely different amount of surprise.</p>
+    </div>
+  </section>
+
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: query the compiled reality <span class="tag demo">★ 8 min · build your own</span></h2>
+    </div>
+    <p class="lede">The graph is metadata. Underneath it there are real objects with real schema names, which is what the compiled SQL points at.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · See what ref() resolved into<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="The objects dbt created, with the schema each ref() resolves to. Views in staging, tables in marts.">
+          <pre class="sql-src">SELECT table_schema, table_name, table_type
+FROM information_schema.tables
+WHERE table_schema IN ('main_staging', 'main_marts')
+ORDER BY table_schema, table_name;</pre>
+        </div>
+        <p>Twenty objects for twenty-three models: the three intermediate models are ephemeral, so they exist only inside the SQL of whatever referenced them. Nothing to query, nothing to keep fresh, nothing for someone to find and misuse.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Prove the ephemeral models really are inlined<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="Zero rows: int_order_lines_enriched is nowhere in the database, yet fct_order_items was built from it.">
+          <pre class="sql-src">SELECT count(*) AS objects_named_int_anything
+FROM information_schema.tables
+WHERE table_name LIKE 'int_%';</pre>
+        </div>
+        <p>Look at <code>fct_order_items</code> in the explorer above and read its compiled SQL: the intermediate model appears as a CTE inside it. That is what <code>ephemeral</code> means, and it is why intermediate models cost nothing to have.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Where the DAG stops helping<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. The graph knows about dependencies you expressed through <code>ref()</code> and <code>source()</code>. It knows nothing about:</p>
+        <ul>
+          <li><strong>Consumers outside dbt.</strong> A BI dashboard, a reverse-ETL sync, somebody's scheduled export - all downstream of your marts, none of them in the manifest. Renaming a mart column is safe according to dbt and catastrophic in the BI tool. This is precisely the gap model contracts close, in session b9.</li>
+          <li><strong>Dependencies you smuggled in.</strong> A hard-coded table name, or a macro that builds a table reference from a string, is invisible to the graph - so dbt may build in the wrong order and be right to.</li>
+          <li><strong>Semantic dependencies.</strong> Two models can be logically coupled - the same business rule implemented twice - with no edge between them. The graph cannot see a copy-paste.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>On your own project, run <code>dbt ls --select &lt;your busiest model&gt;+</code> and count the downstream nodes. Compare that number with what your team believes it is.</li>
+      <li>Grep your models for hard-coded table names. Every one you find is a missing edge in your graph and a possible wrong build order.</li>
+      <li>Find a model with no downstream consumers at all. Either something outside dbt depends on it (which is worth documenting) or it is dead and can go.</li>
+      <li>Look up one model's compiled SQL in <code>target/compiled/</code>. Reading compiled output is the fastest way to debug a Jinja problem.</li>
+      <li>List the consumers of your marts that dbt cannot see - dashboards, exports, syncs. Bring that list to b9, where contracts turn it into something enforceable.</li>
+    </ul>
+  </section>
+
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - <code>ref</code>, <code>source</code>, compilation, the manifest, node selection syntax</span><span class="note">Parts 1-2 + the explorer · graph read from this project's own manifest</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Ephemeral materialization</span><span class="note">Demo 2 · proved by absence in information_schema</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">State-based selection (<code>state:modified+</code>) for CI</span><span class="note">Named here, wired up in session b9</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Exposures - declaring the consumers dbt cannot see</span><span class="note">Self-study Q3 · the gap; contracts and exposures are b9</span></div>
+    </div>
+  </section>
+
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Why write <code>{{ ref('stg_bazaar__orders') }}</code> instead of the table name?</p>
+      <button class="qopt" type="button">A · It is shorter</button>
+      <button class="qopt" type="button">B · dbt requires it for tests to work</button>
+      <button class="qopt" type="button">C · It records a graph edge and resolves per environment - so build order, parallelism, skip-on-failure, impact sets and dev-versus-prod all come for free</button>
+      <p class="qwhy">One call does two things: it names the dependency (which becomes an edge) and it defers the actual schema until run time (which is why the same code runs in dev and prod without a diff).</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · You want to rename a column in a staging model. Which command tells you the blast radius?</p>
+      <button class="qopt" type="button">A · <code>dbt ls --select stg_bazaar__orders+</code> - the plus means everything downstream</button>
+      <button class="qopt" type="button">B · <code>dbt ls --select +stg_bazaar__orders</code></button>
+      <button class="qopt" type="button">C · <code>dbt run --full-refresh</code></button>
+      <p class="qwhy">Trailing plus is downstream (what depends on me), leading plus is upstream (what I depend on). Downstream is the blast radius; upstream is the rebuild path when you need fresh inputs.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · Which dependency is invisible to the DAG?</p>
+      <button class="qopt" type="button">A · A mart that references a dimension</button>
+      <button class="qopt" type="button">B · A BI dashboard querying a mart - it is downstream in reality but absent from the manifest</button>
+      <button class="qopt" type="button">C · A staging model referencing a source</button>
+      <p class="qwhy">dbt only knows what you expressed through ref() and source(). Consumers outside dbt, hard-coded table names, and duplicated business logic are all real dependencies with no edge - which is why b9's contracts and exposures exist.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 4 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>ref()</b><span>Names a model dbt built. Records an edge, resolves per environment.</span></div>
+      <div class="cheat-item"><b>source()</b><span>Names a table dbt did not build. Declared once in a sources yml.</span></div>
+      <div class="cheat-item"><b>The four payoffs</b><span>Build order · safe parallelism · skip-on-failure · impact sets.</span></div>
+      <div class="cheat-item"><b>Selectors</b><span>model+ downstream · +model upstream · folder by path · state:modified+ for CI.</span></div>
+      <div class="cheat-item"><b>This graph</b><span>32 nodes, 47 edges, derived. fct_order_items: 15 upstream, 2 downstream.</span></div>
+      <div class="cheat-item"><b>Ephemeral</b><span>Inlined as a CTE, never materialized. 3 here, 20 objects for 23 models.</span></div>
+      <div class="cheat-item"><b>Compiled SQL</b><span>Read target/compiled/ to debug Jinja. It is the fastest debugging move there is.</span></div>
+      <div class="cheat-item"><b>The blind spot</b><span>BI tools, exports, copy-pasted logic. No edge, real dependency. Next: b5.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 4 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b3-sources-and-staging.html">← Previous: Sources and staging</a> &nbsp;·&nbsp; <a href="b5-intermediate-models.html">Next: Intermediate models →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/dbt-graph.js?v=1"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/dag-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

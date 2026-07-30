@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 4 · Buy vs build the transformation layer - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 4 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 4 of 6</div>
+    <h1>Buy vs build <span class="accent">the transformation layer</span></h1>
+    <p class="sub">This is the session where money is involved, so it is the session where vagueness is expensive. There are four real options for where your SQL transformations live, and they are not four points on a quality scale: they are four different things to own. Sessions a2 and a3 argued that models belong in code and that tests are a governance artifact. Neither of those arguments tells you what to sign. This one does, and it starts with two numbers you can count this week.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Frame the decision</span>
+      <span class="a2" style="flex:3">3-16 · The four options</span>
+      <span class="a3" style="flex:2">16-24 · The honest cost list</span>
+      <span class="a4" style="flex:4">24-45 · Score your own estate</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>What is actually being decided</h2>
+    </div>
+    <p class="lede">Most transformation-tool decisions are made backwards. Somebody sees a demo, likes it, and the business case gets written to fit. The result is a team that pays the full adoption cost of a tool and gets a fraction of the benefit, because the two things that determine the benefit were never counted.</p>
+    <p class="lede">So this session refuses to start with products. It starts with your estate: how many transformations you have, how many people touch them, what infrastructure you already pay for, and who would inherit the whole thing if the person who built it resigned on Friday. Answer those and the shortlist writes itself. Answer none of them and you are choosing a vendor by vibe.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A four-option map with what each option is genuinely for, a decision frame that starts with two countable numbers rather than a feature grid, an honest list of what adoption costs beyond any invoice, and the questions that make your own team's answer visible in one meeting.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: FOUR OPTIONS ============ -->
+  <section class="section" id="options">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the dbt documentation and software-engineering practice applied to SQL</span>
+      <h2>The four options, and what each is for <span class="tag concept">13 min live</span></h2>
+    </div>
+    <p class="lede">dbt is the subject of this course, so it appears twice below: once as software you run yourself and once as a commercial service you buy. Treating those as one option is the single most common mistake in this decision, because the capability is the same and the thing you are buying is completely different.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four options for a transformation layer, each with what you are really buying and when it is right">
+        <style>
+          .oH { font: 700 13px Inter, sans-serif; fill: #22222A; }
+          .oT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .oS { font: 600 10.5px Inter, sans-serif; fill: #F6C3B0; }
+          .oSg { font: 600 10.5px Inter, sans-serif; fill: #E8F3F0; }
+          .oB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .oC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .oN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <text class="oH" x="26" y="34">Four options. Not a quality scale - four different things to own.</text>
+
+        <rect x="26" y="50" width="210" height="62" rx="8" fill="#2B2B33"/>
+        <text class="oT" x="42" y="76">1 · dbt Core</text>
+        <text class="oS" x="42" y="95">self-hosted, free, open</text>
+        <rect x="246" y="50" width="608" height="62" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="oB" x="260" y="76">Buying: nothing. The whole tool, run on a CI runner you already pay for.</text>
+        <text class="oC" x="260" y="95">Right when you have engineers, a CI habit, and someone who will own upgrades.</text>
+
+        <rect x="26" y="122" width="210" height="62" rx="8" fill="#D94E24"/>
+        <text class="oT" x="42" y="148">2 · dbt Cloud</text>
+        <text class="oS" x="42" y="167">the commercial service</text>
+        <rect x="246" y="122" width="608" height="62" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="oB" x="260" y="148">Buying: operations and onboarding. Managed scheduler, browser editor, permissions.</text>
+        <text class="oC" x="260" y="167">Right when the constraint is people and process, not capability. Same models either way.</text>
+
+        <rect x="26" y="194" width="210" height="62" rx="8" fill="#3F7F72"/>
+        <text class="oT" x="42" y="220">3 · Your ELT vendor's</text>
+        <text class="oSg" x="42" y="239">own transformation layer</text>
+        <rect x="246" y="194" width="608" height="62" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="oB" x="260" y="220">Buying: convenience. One vendor, one bill, one login, no extra runner to own.</text>
+        <text class="oC" x="260" y="239">Also buying their roadmap. Leaving later is a rewrite, not an export.</text>
+
+        <rect x="26" y="266" width="210" height="62" rx="8" fill="#6B6B78"/>
+        <text class="oT" x="42" y="292">4 · SQL scripts plus</text>
+        <text class="oS" x="42" y="311">an orchestrator</text>
+        <rect x="246" y="266" width="608" height="62" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="oB" x="260" y="292">Buying: nothing, and owing everything. Genuinely right below about fifteen models.</text>
+        <text class="oC" x="260" y="311">Genuinely painful above it: build order, tests and docs all become your problem.</text>
+
+        <rect x="26" y="346" width="828" height="100" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="oB" x="46" y="370">The categories outlive the products.</text>
+        <text class="oN" x="46" y="392">In five years the names on this page may have moved or merged. The four shapes will not:</text>
+        <text class="oN" x="46" y="412">run it yourself, buy the operations, take whatever your loader ships, or roll your own.</text>
+        <text class="oN" x="46" y="432">Learn the shapes and every future vendor conversation is short.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - four things to own, not four tiers</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Option</th><th>What you are really buying</th><th>When it is the right answer</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>dbt Core</strong><br>self-hosted</td>
+          <td>Nothing. The full capability is in the free, open tool: models, dependency order, tests, generated docs. You supply the machine that runs it, on a schedule something else provides.</td>
+          <td>You have engineers, a version-control habit, and a continuous-integration runner already in use for other things. Somebody is willing to own version upgrades as a standing job.</td>
+        </tr>
+        <tr>
+          <td><strong>dbt Cloud</strong><br>the commercial service</td>
+          <td>Operations and onboarding. A managed scheduler you do not maintain, a browser editing environment for people who will not use version control on their laptop, and a permissions and access story that does not have to be assembled.</td>
+          <td>Your constraint is people, not capability: analysts you want editing models who will never install a local toolchain, or no platform team to hand a runner to. Buy it for the operating model, not for better SQL.</td>
+        </tr>
+        <tr>
+          <td><strong>Your ELT vendor's own layer</strong></td>
+          <td>Convenience, and coupling. One vendor, one bill, one login, no separate runner, and transformations that sit next to the pipelines feeding them.</td>
+          <td>You are small, already committed to that vendor, and the transformation work is modest. Accept honestly that your transformation roadmap becomes their roadmap, and that migrating out is a rewrite rather than an export.</td>
+        </tr>
+        <tr>
+          <td><strong>Hand-rolled SQL plus an orchestrator</strong></td>
+          <td>Nothing, and you owe everything. Build order, test execution, documentation and lineage all become work somebody on your team does by hand, forever.</td>
+          <td>Genuinely right below roughly fifteen models with one editor. Genuinely painful above that, and the pain arrives as a slow tax rather than an outage, which is why teams stay past the point where it made sense.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Say the Core-versus-Cloud sentence out loud<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Here is the sentence, and it is worth being blunt about it in front of a procurement conversation: <strong>the commercial service does not make your models better, faster or more correct. It makes them somebody else's operational problem.</strong></p>
+        <p>That is a real and often excellent thing to buy. Managed scheduling means nobody on your team is paged at 3am for a runner that ran out of disk. A browser editing environment means an analyst who is fluent in SQL and uninterested in local tooling can contribute a model this month rather than next quarter. A permissions model that already exists means you are not inventing one.</p>
+        <p>But notice what none of those are. None of them is a model you could not otherwise have built. If someone tells you the paid tier produces better transformations, they have moved from operations to marketing, and you should ask them to point at the capability.</p>
+        <div class="callout tip">
+          <strong>The procurement test</strong>
+          Ask the vendor to finish this sentence: "with this, your team stops doing X themselves." If X is a real operational chore you can name, the case is sound. If X turns out to be "writing bad SQL", the case is not.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The coupling question, asked properly<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Option 3 is the one most often chosen by accident. Your loader already runs, it grew a transformation feature, and using it is one click cheaper than any alternative. That is a legitimate reason to start there. It stops being legitimate when nobody has asked the exit question.</p>
+        <ul>
+          <li><strong>Where do the transformations physically live?</strong> If they exist only inside the vendor's interface, you do not have a codebase, you have a configuration. Session a2's whole argument about review and rollback quietly does not apply.</li>
+          <li><strong>Can you read them without logging in?</strong> Files in your own repository are portable. Definitions inside a product are not, however good the product is.</li>
+          <li><strong>What happens to your transformation roadmap?</strong> It becomes a subset of their roadmap. If they de-prioritise the feature you need, your only options are waiting or leaving.</li>
+        </ul>
+        <p>None of that makes the option wrong. It makes it a decision with a term attached, and the honest version is: "we are choosing convenience now, and we accept that changing our mind is a rewrite."</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why option 4 survives longer than it should<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Below about fifteen models with a single editor, hand-written SQL plus a scheduler is not a compromise. It is correct. There is no build step to explain, no dependency to install, no templating layer, and one person can hold the whole thing in their head. Introducing a transformation tool there is pure cost.</p>
+        <p>The problem is that the failure mode above that line is invisible. Nothing breaks loudly. Instead: the run order lives in a document that is slightly wrong, a validator exists that somebody sometimes remembers to run, two scripts compute the same number differently, and onboarding a new analyst takes six weeks because the knowledge is in one head. Every one of those is a tax, none of them is an incident, and taxes do not generate decisions.</p>
+        <p>This course's own project is the measured version of that. The same marketplace warehouse exists twice: by hand as 8 SQL files plus a 27-check Python validator that somebody has to remember to run, and as a dbt project of 23 models with 100 tests that run on every build. Both produce settled net revenue of 111,906.48 over 957 orders, average order value 116.93, identical to the cent. The tooling changed nothing about the answer and everything about who has to remember what.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: THE DECISION FRAME ============ -->
+  <section class="section" id="frame">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the frame that replaces the feature grid</span>
+      <h2>Two numbers, then four questions <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">Feature grids are how vendors win decisions, because every row can be answered yes. Counting is how you win them, because the two numbers below decide roughly ninety per cent of this and neither one is in anybody's sales deck.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 478" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The decision frame: count models and editors first, then ask four questions">
+        <style>
+          .fH { font: 700 13px Inter, sans-serif; fill: #22222A; }
+          .fT { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .fC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .fN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .fB { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <text class="fH" x="26" y="32">Count first. The shortlist writes itself.</text>
+
+        <rect x="26" y="46" width="404" height="104" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="fT" x="44" y="72">Number 1 · how many models?</text>
+        <text class="fC" x="44" y="94">Count the distinct transformations that produce</text>
+        <text class="fC" x="44" y="114">something a person or dashboard actually queries.</text>
+        <text class="fC" x="44" y="134">Under fifteen, scripts win. Over thirty, they do not.</text>
+
+        <rect x="450" y="46" width="404" height="104" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="fT" x="468" y="72">Number 2 · how many editors?</text>
+        <text class="fC" x="468" y="94">One person can hold a script estate in their head.</text>
+        <text class="fC" x="468" y="114">Two cannot. Two editors means you need review,</text>
+        <text class="fC" x="468" y="134">review needs a diff, and a diff needs the code.</text>
+
+        <rect x="26" y="166" width="828" height="86" rx="9" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="fB" x="46" y="190">Read the two numbers together</text>
+        <text class="fN" x="46" y="212">Few models and one editor: buy nothing, and revisit in six months. Adopt when either number</text>
+        <text class="fN" x="46" y="232">crosses. Once you are adopting, Core versus Cloud is an operations question, not a capability one.</text>
+
+        <text class="fH" x="26" y="282">Then four questions, in this order.</text>
+
+        <rect x="26" y="296" width="404" height="76" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="fT" x="44" y="320">Do you need a scheduler, or own one?</text>
+        <text class="fC" x="44" y="340">If a scheduler already runs your loads, a managed</text>
+        <text class="fC" x="44" y="358">one is your second. That is a cost, not a feature.</text>
+
+        <rect x="450" y="296" width="404" height="76" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="fT" x="468" y="320">Who reviews a model change?</text>
+        <text class="fC" x="468" y="340">Name the person. If nobody reviews, you buy the</text>
+        <text class="fC" x="468" y="358">whole cost and none of the benefit. See a5.</text>
+
+        <rect x="26" y="386" width="404" height="76" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="fT" x="44" y="410">What happens when the builder leaves?</text>
+        <text class="fC" x="44" y="430">Conventions plus generated docs survive a</text>
+        <text class="fC" x="44" y="448">resignation. A clever script estate does not. See a6.</text>
+
+        <rect x="450" y="386" width="404" height="76" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="fT" x="468" y="410">Which pieces do you already own?</text>
+        <text class="fC" x="468" y="430">A code host, a CI runner, a warehouse, a scheduler.</text>
+        <text class="fC" x="468" y="448">Most teams own three of the four before they start.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - two numbers, then four questions</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why the editor count matters more than the model count<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Model count is the number people quote, because it sounds like scale. Editor count is the number that actually decides, because it is the number that makes coordination a cost.</p>
+        <p>With one editor, everything a transformation tool provides can be substituted by memory. She knows the run order. She knows which script is stale. She knows the number is wrong on Mondays. It is not written down and it does not need to be, and the estate runs fine right up until she takes annual leave.</p>
+        <p>With two editors, memory stops working, because two memories disagree and nothing arbitrates. That is the moment you need the change to be visible before it ships, which is review, which needs a diff, which needs the definitions to be files. Everything in session a2 follows from the editor count going from one to two.</p>
+        <div class="callout tip">
+          <strong>The uncomfortable corollary</strong>
+          A team with forty models and one editor has a succession problem, not a tooling problem. Buying a tool will not fix it, and hiring a second editor will surface it in about a week.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What a fifteen-model estate looks like from the inside<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Fifteen is not a magic threshold, it is where three separate costs happen to cross at once for most teams.</p>
+        <ul>
+          <li><strong>Build order stops being obvious.</strong> With eight steps, the order is a paragraph. With twenty-three, it is a graph, and this course's project has 47 dependency edges between 32 nodes. Nobody maintains that by hand accurately, and the failure is silent: a model built from yesterday's input still returns rows.</li>
+          <li><strong>Manual checks stop being run.</strong> The hand-built version of this warehouse has a validator with 27 checks. It works perfectly and it is optional, which over a year means it runs about as often as anyone remembers.</li>
+          <li><strong>Nobody can answer "what breaks if I change this".</strong> Which turns every rename into either a three-week discovery process or a decision not to rename, and estates that stop renaming things accumulate names that lie.</li>
+        </ul>
+        <p>If two of those three are already true for you, you are past the line regardless of your model count.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: THE COST LIST ============ -->
+  <section class="section" id="costs">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · the part that is not on the invoice</span>
+      <h2>What adoption actually costs <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">If you present this decision as a licence line, you will be believed and then blamed. The licence is the small part, and on option 1 it is zero. The real cost is a change to how work happens, and it lands on the same people who are already delivering.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The licence line versus what adoption actually costs, plus the sunk-cost trap">
+        <style>
+          .cT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .cC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .cR { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .cK { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+        </style>
+
+        <rect x="26" y="28" width="404" height="40" rx="8" fill="#3F7F72"/>
+        <text class="cT" x="44" y="53">What the licence line says</text>
+        <text class="cC" x="44" y="92">dbt Core: zero</text>
+        <text class="cC" x="44" y="112">dbt Cloud: a subscription</text>
+        <text class="cC" x="44" y="132">ELT vendor's layer: folded into a bill you pay</text>
+        <text class="cC" x="44" y="152">Scripts plus an orchestrator: zero</text>
+        <text class="cC" x="44" y="172">So three of the four options look free</text>
+
+        <rect x="450" y="28" width="404" height="40" rx="8" fill="#2B2B33"/>
+        <text class="cT" x="468" y="53">What adoption actually costs</text>
+        <text class="cC" x="468" y="92">a build step in front of every change</text>
+        <text class="cC" x="468" y="112">a language runtime to install and keep current</text>
+        <text class="cC" x="468" y="132">templating mixed into SQL people already know</text>
+        <text class="cC" x="468" y="152">conventions to agree, then actually enforce</text>
+        <text class="cC" x="468" y="172">a team learning three new things at once</text>
+
+        <rect x="26" y="196" width="828" height="100" rx="9" fill="#FEF2F2" stroke="#991B1B"/>
+        <text class="cR" x="46" y="220">The sunk-cost trap, and it is the expensive one</text>
+        <text class="cK" x="46" y="244">Migrations move the existing model across unchanged, because that is cheap and shows progress.</text>
+        <text class="cK" x="46" y="264">You now have a wrong shape in a good tool: built faster, spread wider, tested against itself, and</text>
+        <text class="cK" x="46" y="284">referenced by a dozen downstream models. Fix the model first. The tool will not have an opinion.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three of four options look free and none of them are</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Three new things at once is the real risk<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Ask a team to adopt a transformation tool and you have usually asked them to learn three unrelated skills in the same quarter:</p>
+        <ul>
+          <li><strong>Version control as a daily habit,</strong> not an occasional backup. Branches, review, merge conflicts, and the discipline of not editing production directly. Session a2 is about why this is worth it; it is still a real learning curve.</li>
+          <li><strong>A templating layer inside their SQL.</strong> Analysts who are genuinely fluent in SQL now see syntax that is not SQL in the middle of it. This is the thing they complain about, and the complaint is fair for the first month.</li>
+          <li><strong>A layering convention.</strong> Which model belongs where, what staging is allowed to do, what a mart is for. This is the part that determines whether the estate is maintainable in two years, and it is the part with no error message.</li>
+        </ul>
+        <p>You can sequence these. Version control first, on the existing scripts, before any tool arrives. Then the tool. Then, once models are landing, tighten the conventions. Teams that try all three in one sprint produce a project that technically builds and that nobody wants to touch.</p>
+        <div class="callout tip">
+          <strong>What to budget</strong>
+          Not licence. Budget the review time of your most senior person for a quarter, because their reviews are the mechanism by which conventions become real. If you cannot spare that, delay the adoption rather than skipping the reviews.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The one cost that is genuinely zero<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Documentation and lineage. Not cheap: zero, once the models are in the tool. Descriptions live beside the columns they describe, and the dependency graph is derived from the code rather than drawn by a person. This course's project has a lineage graph of 32 nodes and 47 edges, read from the project's own build output, and nobody maintains it.</p>
+        <p>That is worth pricing into this decision honestly, because it is the benefit leaders systematically undervalue. A diagram somebody drew is out of date the week after the offsite. A graph derived from the code cannot be out of date, because if it were wrong the build would not have worked. Session a6 is entirely about that difference, and it is the strongest single argument in the business case.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discuss">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 18 min · everyone participates</span>
+      <h2>Score your own estate <span class="tag demo">★ no code, no laptops</span></h2>
+    </div>
+    <p class="lede">Three exercises. The first one is runnable in your next team meeting with nothing but a whiteboard, and it is the one that most often changes the decision.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Count, out loud, in the room.</strong> Two numbers on the board: transformations, and editors. No estimates. If the room cannot agree on either number, that disagreement is your finding.</p></div>
+      <div class="step"><p><strong>Cross off what you already own.</strong> Code host, CI runner, warehouse, scheduler. Every one you own moves the answer away from buying operations.</p></div>
+      <div class="step"><p><strong>Run the leaving test.</strong> Name the person who inherits this if the builder resigns on Friday, and ask them, in the room, what they would need.</p></div>
+      <div class="step"><p><strong>Only now look at options.</strong> If you started here, start again.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · the two numbers, out loud<span class="mini">7 min · run this in your next team meeting</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Before this meeting ends, I want two numbers on the whiteboard. First: how many distinct transformations do we have that produce something a person or a dashboard actually queries? Second: how many different people edited at least one of them in the last ninety days? Not estimates. Actual counts, and if we cannot produce them today, say so."</p>
+        <p><strong>What a good answer sounds like.</strong> Somebody says a number, somebody else says "it depends what you count as a transformation", and the room spends four minutes agreeing a definition. That argument is productive: it is the first time anyone has drawn a boundary around the estate. You end with two numbers and a shared definition, and often with the discovery that the count is roughly double what the leadership team assumed.</p>
+        <p><strong>The failure mode to listen for.</strong> Instant confident agreement. "About twenty, and it is basically just me and Ravi." If the numbers arrive with no argument and no source, they are recalled rather than counted, and the recalled version is always smaller and always missing the scripts on somebody's laptop. Ask where the list is written down. If the answer is nowhere, your first number is not a count, it is a hope.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · what do we already own<span class="mini">6 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Four pieces of infrastructure sit under this decision: a place to store and review code, a runner that executes things on a trigger, a warehouse, and a scheduler. Which of those four do we already pay for and already use, today, for something else? For each one we own, tell me who administers it."</p>
+        <p><strong>What a good answer sounds like.</strong> Three of the four named, each with an owner: "the platform team runs the code host and the CI runner, the warehouse is ours, and there is a scheduler running the loads that the data engineering team owns." That answer moves you decisively toward self-hosting, because the thing the commercial service sells you is operations you have demonstrably already bought.</p>
+        <p><strong>The failure mode to listen for.</strong> "We have a CI runner but nobody has permission to add jobs to it." That is not owning it. Shared infrastructure you cannot get a change into behaves exactly like infrastructure you do not have, and it is a common reason a self-hosted plan quietly fails six weeks in. Push until you get either a named administrator who has agreed, or an honest no.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Exercise 3 · the leaving test<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Suppose the person who built our current transformation setup resigns on Friday with no handover. Name the individual who picks it up on Monday. Now, in front of everyone, ask that person what they would need in order to be productive within a week."</p>
+        <p><strong>What a good answer sounds like.</strong> The named person says something concrete and slightly damning: "I would need to know what order things run in, and I would need somebody to tell me which of the two revenue queries is the real one." That is a specification for what your tooling and conventions have to produce, written by the person who will actually need it.</p>
+        <p><strong>The failure mode to listen for.</strong> Laughter, then "honestly, we would just rebuild it." That is a truthful answer and it is also the entire business case, quantified. Rebuilding a working estate because nobody can read it is the most expensive thing on this page, and it does not appear on any invoice.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The most common wrong answer to this session is buying the operations you already own.</strong> A team with a code host, a CI runner and a scheduler already in production, run by a platform group that is happy to add a job, buys the managed service anyway, for the browser editor. Then two analysts use the editor for a month and go back to asking the analytics engineer. What was purchased was a second scheduler, a second permissions model and a second place where definitions live. The capability was free the whole time. Conversely, a five-person team with no platform group, no CI habit and one very good analyst who has never used version control should probably buy the managed service on day one, because their scarce resource is operations attention and that is precisely what is for sale. Same decision, opposite answers, and the deciding factor was never the feature list.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="ask">
+    <div class="section-kicker">
+      <span class="klabel">Take this back to your team</span>
+      <h2>Questions to ask your data team <span class="tag concept">use them this week</span></h2>
+    </div>
+    <p class="lede">Six questions. None of them is about features, and each one is designed so that hesitation is as informative as the answer.</p>
+    <table class="clean">
+      <thead><tr><th>Ask</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"How many transformations do we have, and how many people edited one last quarter?"</td>
+          <td>These are the two numbers that decide the whole thing, and almost nobody has counted either. Whatever comes back, you have moved the conversation from products to your own estate.</td>
+        </tr>
+        <tr>
+          <td>"If we buy the managed version, which specific chore do we stop doing ourselves?"</td>
+          <td>Forces the case to be operational. A good answer names a chore. A weak answer describes a capability you already have for free, which is the signal to slow down.</td>
+        </tr>
+        <tr>
+          <td>"Do we already have a scheduler, and would this be our second one?"</td>
+          <td>Reveals duplication before you pay for it. Two schedulers is not redundancy, it is two places to look when something did not run.</td>
+        </tr>
+        <tr>
+          <td>"Who reviews a change to our headline number today, and what happens if they say no?"</td>
+          <td>If nobody reviews, no tool will help, because review is the mechanism the tooling exists to serve. Session a5 is entirely about this answer.</td>
+        </tr>
+        <tr>
+          <td>"If we migrate, what moves first, and are we confident that model is right?"</td>
+          <td>Surfaces the sunk-cost trap while it is still cheap. Migrating a wrong shape into a good tool makes it faster to build and much more expensive to fix.</td>
+        </tr>
+        <tr>
+          <td>"What would we have to rewrite if we left this vendor in two years?"</td>
+          <td>Prices the coupling. If the answer is "everything, because the definitions live in their interface", you are choosing a term, not a tool, and that should be said out loud.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session a5 <span class="tag exercise">◐ 30-40 min total</span></h2>
+    </div>
+    <ul>
+      <li>Get the two numbers in writing from your team: transformation count and editor count over the last ninety days. Not estimates. Note how long it took them to produce, because that duration is itself a finding.</li>
+      <li>Write down which of the four infrastructure pieces you already pay for, and name the administrator of each. Bring the list of ones you own but cannot get a change into.</li>
+      <li>Ask your finance or procurement partner what a transformation-tool subscription would need to displace to be approved. Knowing the trade before you propose it is the difference between a decision and a delay.</li>
+      <li>Pick the one model you would migrate first and ask your most sceptical analyst whether its definition is currently correct. If the answer is no, you have found this session's most expensive risk before spending anything.</li>
+      <li>Draft one paragraph of the business case using only operational language: what your team stops doing, and who stops doing it. If you cannot fill the paragraph, the case is not ready and a5 will tell you why.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The dbt documentation - what the open tool does, and what the commercial service adds operationally</span><span class="note">Part 1 · treated as a decision. No pricing, no screenshots: a product tour would be stale before delivery</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Software-engineering practice applied to SQL - build steps, dependencies, review, environments</span><span class="note">Parts 2-3 · the adoption cost list and the editor-count argument</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The community layering conventions</span><span class="note">Part 3 · named as the cost with no error message; taught properly in a2 and the builder track</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - the model you would be migrating</span><span class="note">Part 3 · the sunk-cost trap only. The model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Your team has 34 models, four editors, a code host, a CI runner and a scheduler the platform team already operates. What is the most defensible choice?</p>
+      <button class="qopt" type="button">A · Buy the managed service, because four editors is a real team and managed is safer</button>
+      <button class="qopt" type="button">B · Stay on scripts, because you already have a scheduler</button>
+      <button class="qopt" type="button">C · Self-host the open tool on the CI runner you already operate, because the paid tier's value is operations you have already bought</button>
+      <p class="qwhy">Both numbers say adopt a transformation tool. But the commercial service sells managed scheduling, a browser editor and a permissions story, and this team already owns the equivalent of all three with a group willing to run them. Buying it here purchases a second scheduler and a second place for definitions to live.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">2 · A vendor tells you their transformation layer will "improve the quality of your data models". What is the right response?</p>
+      <button class="qopt" type="button">A · Ask for a benchmark comparing their output to hand-written SQL</button>
+      <button class="qopt" type="button">B · Ask them to name the specific chore your team stops doing, because tooling changes who maintains a model, not whether the model is right</button>
+      <button class="qopt" type="button">C · Accept it, since better tooling generally produces better output</button>
+      <p class="qwhy">No transformation tool has an opinion about your grain or your definitions. This course's project proves it from the other direction: the same warehouse built by hand and built with dbt produces settled revenue of 111,906.48 both ways, identical to the cent. What changed was who has to remember the run order and whether the checks run. Any claim about quality is a claim about operations wearing a different coat.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · You are approving a migration. The team proposes lifting the existing revenue model across unchanged in week one, to show progress. What is the risk you should name?</p>
+      <button class="qopt" type="button">A · If that model's shape is wrong, the tool will build it faster, spread it wider and make it more expensive to fix once a dozen models reference it</button>
+      <button class="qopt" type="button">B · The migration will take longer than estimated</button>
+      <button class="qopt" type="button">C · Nothing, this is the standard approach</button>
+      <p class="qwhy">This is the sunk-cost trap, and it is the most expensive thing in the session. A transformation tool makes a good model cheaper to maintain and a bad model faster to spread. Fix the definition before the migration, while exactly one thing depends on it.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Leader session 4 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Four options</b><span>Self-host the open tool · buy the managed service · take your loader's layer · roll your own.</span></div>
+      <div class="cheat-item"><b>What Cloud sells</b><span>Operations and onboarding: managed scheduling, a browser editor, permissions. Not capability.</span></div>
+      <div class="cheat-item"><b>Two numbers</b><span>Model count and editor count. Under fifteen with one editor, buy nothing.</span></div>
+      <div class="cheat-item"><b>Editors decide</b><span>One editor runs on memory. Two need review, review needs a diff, a diff needs files.</span></div>
+      <div class="cheat-item"><b>Four questions</b><span>Scheduler already? Who reviews? What if the builder leaves? What do we already own?</span></div>
+      <div class="cheat-item"><b>The real cost</b><span>A build step, a runtime, templating in the SQL, and three new things learned at once.</span></div>
+      <div class="cheat-item"><b>The trap</b><span>Migrating a wrong model into a good tool: built faster, spread wider, dearer to fix.</span></div>
+      <div class="cheat-item"><b>Categories outlive products</b><span>Names change, the four shapes do not. Next: a5, who actually runs it.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 4 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="a3-tests-as-trust.html">← Previous: Tests as the trust budget</a> &nbsp;·&nbsp; <a href="a5-team-shape.html">Next: The team shape →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

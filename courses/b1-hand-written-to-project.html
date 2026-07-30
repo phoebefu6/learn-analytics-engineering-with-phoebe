@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 1 · From hand-written SQL to a project - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 1 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 1 of 10</div>
+    <h1>From hand-written SQL <span class="accent">to a project</span></h1>
+    <p class="sub">The sibling course, learn-data-modeling, built a marketplace warehouse by hand: DDL, a transform script, four marts, and a Python validator with 27 checks. It works. This course rebuilds exactly the same warehouse as a dbt project - 23 models, 100 tests, one snapshot - and gets the same numbers to the cent. Today you run it end to end, read the output of a real <code>dbt build</code>, and see what the tooling actually bought: not different SQL, but dependencies it works out for you and tests that run every single time.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">Start here</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · What dbt is, and what it is not</span>
+      <span class="a3" style="flex:5">18-42 · Build-along: run the project, read the output</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>How this track works</h2>
+    </div>
+    <p class="lede">Ten sessions, one project. <strong>Bazaar</strong> is the multi-merchant marketplace from <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>: 12 merchants, 60 products, 985 orders, 1,060 payment attempts, 90 days. You already know the model - which is the point. Nothing in this track asks you to learn a new domain while you learn a new tool, so every session is about the craft: sources and staging (b3), <code>ref()</code> and the DAG (b4), intermediate models (b5), dimensions, facts and snapshots (b6), tests (b7), marts (b8), contracts and deployment (b9), and a new subject area end to end in the capstone (b10).</p>
+    <p class="lede">The project in <code>dbt_project/</code> is real and it runs. Every number on these pages comes from an actual <code>dbt build</code>, and the model SQL in the browser labs is the SQL dbt compiled - not a transcription.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      An honest account of what dbt does and does not do, the output of a real build read line by line, and a browser tab running the finished project - staging views, dimensions, facts and marts - that you can query any time.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHAT DBT IS ============ -->
+  <section class="section" id="what">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation, the analytics-engineering premise</span>
+      <h2>What dbt is, and what it is not <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">dbt does one thing: it takes SELECT statements you write and turns them into tables and views in your warehouse, in dependency order, with tests. It does not move data, it does not schedule itself, and it does not have an opinion about your model. Everything else it appears to offer follows from that one job being done properly.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="What dbt does and does not do, and what it added to the same Bazaar warehouse">
+        <style>
+          .dtT { font: 700 13px Inter, sans-serif; fill: #FFFFFF; }
+          .dtH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .dtC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .dtB { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .dtN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .dtArr { stroke: #F1855F; stroke-width: 2.5; fill: none; marker-end: url(#dtAh); }
+        </style>
+        <defs>
+          <marker id="dtAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#F1855F"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="30" width="240" height="44" rx="8" fill="#D94E24"/>
+        <text class="dtT" x="44" y="58">dbt DOES</text>
+        <text class="dtC" x="44" y="96">compile SELECTs into tables and views</text>
+        <text class="dtC" x="44" y="116">work out the dependency order</text>
+        <text class="dtC" x="44" y="136">run tests on every build</text>
+        <text class="dtC" x="44" y="156">generate docs and lineage</text>
+        <text class="dtC" x="44" y="176">version the whole thing in git</text>
+
+        <rect x="320" y="30" width="240" height="44" rx="8" fill="#2B2B33"/>
+        <text class="dtT" x="338" y="58">dbt does NOT</text>
+        <text class="dtC" x="338" y="96">extract or load data</text>
+        <text class="dtC" x="338" y="116">schedule itself</text>
+        <text class="dtC" x="338" y="136">store data of its own</text>
+        <text class="dtC" x="338" y="156">design your model for you</text>
+        <text class="dtB" x="338" y="176">fix a bad model - see the note</text>
+
+        <rect x="614" y="30" width="240" height="44" rx="8" fill="#3F7F72"/>
+        <text class="dtT" x="632" y="58">Same warehouse, measured</text>
+        <text class="dtC" x="632" y="96">by hand: 8 SQL files, 27 checks</text>
+        <text class="dtC" x="632" y="116">as dbt: 23 models, 100 tests</text>
+        <text class="dtC" x="632" y="136">revenue: 111,906.48 both ways</text>
+        <text class="dtC" x="632" y="156">build time: 1.22 seconds</text>
+        <text class="dtC" x="632" y="176">dependency order: derived</text>
+
+        <rect x="26" y="212" width="828" height="96" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="dtH" x="46" y="238">The load-bearing sentence of this whole course:</text>
+        <text class="dtN" x="46" y="262">dbt makes a good model cheaper to maintain and a bad model faster to spread. It has no</text>
+        <text class="dtN" x="46" y="282">opinion about grain, and it will happily build 200 models on a wrong one. That is why</text>
+        <text class="dtN" x="46" y="302">learn-data-modeling comes first, and why this course reuses its model rather than inventing one.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the honest scope of the tool</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why "models as code" changes the job<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The SQL in this project is not better SQL than the hand-written version. What changed is everything around it:</p>
+        <ul>
+          <li><strong>Dependencies are declared once, in the SQL.</strong> You write <code>{{ ref('stg_bazaar__orders') }}</code> instead of a table name, and dbt derives the build order. Nobody maintains a runbook saying what to run first - session b4 is about exactly this.</li>
+          <li><strong>Tests live next to the models and run every time.</strong> The hand-written version had a 27-check Python validator somebody had to remember to run. This project has 100 tests that run on <code>dbt build</code>, and a failure stops the build.</li>
+          <li><strong>Everything is reviewable.</strong> A model change is a pull request with a diff, so a definition change is visible before it ships instead of being discovered in a dashboard.</li>
+          <li><strong>Documentation is generated from the same files.</strong> Descriptions live beside the columns they describe, so the docs cannot drift from what is queryable.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>What it costs</strong>
+          A build step, a Python dependency, Jinja in your SQL, and a team that has to learn all three. On a five-model project that is a bad trade. Somewhere around fifteen to twenty models, with more than one person touching them, it stops being close - and session a4 is the leader-track version of that judgement.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The four layers this project uses<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The layering is a convention, not a dbt feature, and it is the single most useful convention in the ecosystem:</p>
+        <ul>
+          <li><strong>sources</strong> - the eight raw Bazaar tables, declared once in <code>_bazaar__sources.yml</code>. The only place a raw table name appears.</li>
+          <li><strong>staging</strong> (8 models, materialized as views) - one per source table: rename, recast, light cleaning, <em>no joins</em>. Cheap and disposable.</li>
+          <li><strong>intermediate</strong> (3 models, ephemeral) - the joins staging is not allowed to do. Ephemeral means dbt inlines them into whatever references them, so nothing is materialized and nobody can query a half-finished shape by accident.</li>
+          <li><strong>marts</strong> (12 models, materialized as tables) - the dimensions, facts and aggregates people actually query.</li>
+        </ul>
+        <p>Materialization is a decision per layer, written once in <code>dbt_project.yml</code>: views for staging because they are cheap and always fresh, tables for marts because they are queried constantly, ephemeral for intermediate because they are plumbing. Session b2 walks that config line by line.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: READING A BUILD ============ -->
+  <section class="section" id="build">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the output you will read every day</span>
+      <h2>What a real build says <span class="tag concept">4 min live</span></h2>
+    </div>
+    <p class="lede">This is the tail of an actual <code>dbt build</code> on this project, on a laptop, against DuckDB. Learn to read it and you can debug most of what goes wrong.</p>
+
+    <div class="callout example">
+      <span class="ex-pill">Real output</span>
+      <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;line-height:1.8">
+        Found 23 models, 100 data tests, 1 snapshot, 8 sources, 489 macros<br>
+        Concurrency: 4 threads (target='dev')<br>
+        &nbsp;<br>
+        1 of 121 START sql view model main_staging.stg_bazaar__users .... [RUN]<br>
+        1 of 121 OK created sql view model main_staging.stg_bazaar__users [OK in 0.04s]<br>
+        ...<br>
+        119 of 121 PASS unique_combination_mart_merchant_daily_activity_date__merchant_id [PASS]<br>
+        &nbsp;<br>
+        Finished running 1 snapshot, 12 table models, 100 data tests, 8 view models in 1.22s<br>
+        Completed successfully<br>
+        Done. PASS=121 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=121
+      </p>
+    </div>
+
+    <table class="clean">
+      <thead><tr><th>Line</th><th>What it tells you</th></tr></thead>
+      <tbody>
+        <tr><td><code>Found 23 models, 100 data tests...</code></td><td>parsing worked. If a model has a syntax error in its Jinja, you never get past this line</td></tr>
+        <tr><td><code>Concurrency: 4 threads</code></td><td>dbt runs independent models in parallel; the DAG is what makes that safe</td></tr>
+        <tr><td><code>1 of 121</code></td><td>models and tests are one queue - <code>dbt build</code> interleaves them, so a model's tests run as soon as it is built</td></tr>
+        <tr><td><code>OK created sql view model</code></td><td>the materialization actually used, which is worth checking against what you intended</td></tr>
+        <tr><td><code>PASS=121 ERROR=0</code></td><td>the only line CI cares about. Any ERROR and the build exits non-zero</td></tr>
+        <tr><td><code>SKIP</code></td><td>a model whose upstream failed. In a hand-written script it would have run anyway, on stale data</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why SKIP is the most underrated word in that output<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>When a test fails, dbt does not just report it - it refuses to build anything downstream of the broken model. Your marts keep yesterday's data rather than being rebuilt from something known to be wrong.</p>
+        <p>Compare with the hand-written version of this warehouse: the transform script ran top to bottom, and if the star came out wrong the marts were rebuilt from it anyway, because a script has no idea what depends on what. Then the dashboards refreshed. The validator would have caught it - if someone had run the validator.</p>
+        <div class="callout tip">
+          <strong>The one-line version</strong>
+          A script runs steps. dbt runs a graph, and a graph knows what to stop.
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Query the built project <span class="tag demo">★ 12 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">These editors run <strong>real DuckDB</strong> in your browser, with this project already built from Bazaar's raw schema using dbt's own compiled SQL. The first Run downloads the engine (about 8 MB, once), then everything is local.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Look at what exists.</strong> Three schemas: <code>raw</code> (the loader's output), <code>main_staging</code> (8 views), <code>main_marts</code> (12 tables).</p></div>
+      <div class="step"><p><strong>Reconcile.</strong> Ask the marts the same question the hand-built warehouse answered, and check the number matches to the cent.</p></div>
+      <div class="step"><p><strong>Then edit.</strong> Every box is editable - this is a real engine, so break things and see what happens.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Three schemas, 20 objects. The layering is visible in the database itself.">
+      <pre class="sql-src">SELECT table_schema, table_type, count(*) AS objects
+FROM information_schema.tables
+WHERE table_schema IN ('raw', 'main_staging', 'main_marts')
+GROUP BY table_schema, table_type
+ORDER BY table_schema, table_type;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="The same numbers the hand-built warehouse produced: 111,906.48 settled revenue over 957 orders, AOV 116.93.">
+      <pre class="sql-src">SELECT round(sum(net_amount), 2)                         AS net_revenue,
+       count(DISTINCT order_id)                          AS settled_orders,
+       round(sum(net_amount) / count(DISTINCT order_id), 2) AS aov,
+       count(*)                                          AS fact_rows
+FROM main_marts.fct_order_items
+WHERE is_settled;</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>That identical number is the honest sales pitch for dbt.</strong> Not "better numbers" - the same numbers, produced by SQL that is now version-controlled, dependency-ordered, tested on every run and documented from the same files. Anybody promising that a transformation tool improves your numbers is selling you something else; what it improves is your ability to change them safely.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: the four questions, one layer up <span class="tag demo">★ 10 min · build your own</span></h2>
+    </div>
+    <p class="lede">The modeling course answered four business questions with hand-written SQL against hand-built marts. Same questions, same answers, now against dbt-built marts.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Which merchant dropped?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="M07 Nimbus Audio: 3,063 to 455 across the two fortnights. Same answer as the hand-built mart.">
+          <pre class="sql-src">SELECT merchant_id, merchant_name,
+       round(sum(CASE WHEN activity_date >= '2026-06-16' THEN net_revenue ELSE 0 END), 0) AS recent_14d,
+       round(sum(CASE WHEN activity_date >= '2026-06-02'
+                       AND activity_date <  '2026-06-16' THEN net_revenue ELSE 0 END), 0) AS prior_14d
+FROM main_marts.mart_merchant_daily
+GROUP BY 1, 2
+ORDER BY recent_14d - prior_14d
+LIMIT 5;</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Peak transaction hours<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="The evening peak, from a mart dbt built at date-hour grain.">
+          <pre class="sql-src">SELECT hour_label, daypart, sum(attempts) AS attempts, sum(approvals) AS approvals
+FROM main_marts.mart_hourly_transactions
+GROUP BY 1, 2
+ORDER BY attempts DESC
+LIMIT 6;</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · What could this project NOT protect you from?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. dbt would have built this project happily if the fact table had been at the wrong grain, if revenue had been defined as gross, or if the two facts had been joined together in a mart. It has no opinion about any of that: it compiles what you write, in the right order, and tests what you told it to test.</p>
+        <p>Which means the risk moves rather than disappearing. A hand-written estate fails slowly and visibly - queries diverge, people argue, somebody eventually digs in. A dbt estate fails quickly and consistently: one wrong definition in a staging model propagates to every mart and every dashboard on the next build, in seconds, everywhere. That is a real improvement in traceability and a real increase in blast radius, and session b9's contracts exist because of it.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>Clone this repo and run it: <code>python python/load_raw.py</code>, then <code>cd dbt_project &amp;&amp; dbt build</code>. You need dbt-core and dbt-duckdb; there is no cloud account and no warehouse bill.</li>
+      <li>Read the build output and find the first test that runs. Notice how early it is - <code>dbt build</code> tests each model as soon as it exists rather than at the end.</li>
+      <li>Break something on purpose: change a column name in a staging model and rebuild. Read which models fail and which get skipped.</li>
+      <li>Count the models in your own warehouse's most complicated transformation script. If it is over fifteen and more than one person edits it, you have session a4's answer already.</li>
+      <li>Bring one question about your own stack to b2 - the config session is where "how would this work at my company" gets answered.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - what dbt is, models as SELECTs, build output, materializations</span><span class="note">Parts 1-2 · read from a real build of this project</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The dbt layering convention (staging, intermediate, marts)</span><span class="note">Part 1 self-study · the four layers, with materialization per layer</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - the dimensional model being rebuilt here</span><span class="note">Demo 2 · the model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>, not this course</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Orchestration and scheduling</span><span class="note">Named as out of scope - dbt does not schedule itself; that is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Which of these does dbt do?</p>
+      <button class="qopt" type="button">A · Extract data from source systems on a schedule</button>
+      <button class="qopt" type="button">B · Turn SELECT statements into tables and views in dependency order, with tests</button>
+      <button class="qopt" type="button">C · Store transformed data in its own storage layer</button>
+      <p class="qwhy">That is the whole job. It does not extract, it does not schedule itself, and it stores nothing - your warehouse holds the data. Everything else dbt appears to offer follows from doing that one job properly.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · Rebuilt as a dbt project, Bazaar's settled revenue is 111,906.48 - identical to the hand-built warehouse. What does that prove?</p>
+      <button class="qopt" type="button">A · That dbt produces more accurate numbers</button>
+      <button class="qopt" type="button">B · That the hand-built version was wrong</button>
+      <button class="qopt" type="button">C · That the tooling changed how the SQL is managed, not what it computes - the gain is safety of change, not accuracy</button>
+      <p class="qwhy">Same numbers, produced by SQL that is now version-controlled, dependency-ordered, tested on every run and documented from the same files. A tool that claimed to improve your numbers would be selling you something else.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · A test fails on a staging model. What happens to the marts downstream of it?</p>
+      <button class="qopt" type="button">A · They are SKIPped - dbt will not rebuild anything downstream of a failure, so they keep yesterday's data instead of being rebuilt from something known to be wrong</button>
+      <button class="qopt" type="button">B · They are rebuilt anyway and flagged</button>
+      <button class="qopt" type="button">C · They are dropped</button>
+      <p class="qwhy">SKIP is the most underrated word in the build output. A hand-written script runs steps and has no idea what depends on what; dbt runs a graph, and a graph knows what to stop.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 1 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>dbt does</b><span>Compiles SELECTs into tables/views, in dependency order, with tests, docs and git.</span></div>
+      <div class="cheat-item"><b>dbt does not</b><span>Extract, load, schedule, store data, or have an opinion about your model.</span></div>
+      <div class="cheat-item"><b>The trade</b><span>A build step, a Python dep and Jinja, for dependency order and tests that always run.</span></div>
+      <div class="cheat-item"><b>Four layers</b><span>sources → staging (views) → intermediate (ephemeral) → marts (tables).</span></div>
+      <div class="cheat-item"><b>This project</b><span>23 models, 100 tests, 1 snapshot, 8 sources. dbt build: PASS=121, ERROR=0, 1.22s.</span></div>
+      <div class="cheat-item"><b>Same numbers</b><span>111,906.48 settled revenue, 957 orders, AOV 116.93 - identical to the hand-built version.</span></div>
+      <div class="cheat-item"><b>SKIP matters</b><span>A failed test stops everything downstream. A script would have rebuilt it anyway.</span></div>
+      <div class="cheat-item"><b>Blast radius</b><span>Good models get cheaper; bad models spread faster. Next: b2, the config.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 1 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="../index.html">← All sessions</a> &nbsp;·&nbsp; <a href="b2-project-config.html">Next: The project config →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

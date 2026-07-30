@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 7 · The break-a-model lab - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 7 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 7 of 10</div>
+    <h1>The <span class="accent">break-a-model</span> lab</h1>
+    <p class="sub">Tests are the only reason anyone should trust a warehouse that changes every day. This session proves it the hard way: pick a breakage - a retried load, a widened column, a key that stops resolving, a definition changed without a rename - and the lab applies it as real SQL, then runs the project's own 100 compiled dbt tests against the damage. With no tests, nothing is caught. With generic tests, four of six. With the five hand-written assertions as well, all six. The two the generic tests miss are the two where the shape stayed perfect and the meaning moved.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Signature lab · real DuckDB, real dbt tests</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-14 · What a dbt test actually is</span>
+      <span class="a3" style="flex:6">14-40 · The lab: break it, run the suite, read the failures</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Why tests are the whole argument</h2>
+    </div>
+    <p class="lede">Hand-written warehouse SQL is not untested because analysts are careless. It is untested because there was never anywhere to put a test. dbt's real contribution is not Jinja or the DAG - it is that a test is a file next to the model, it runs on every build, and a failure stops the build. Sessions b3 to b6 built the project. This session is about the part that makes it safe to change.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live lab - real DuckDB, real dbt tests</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A working definition of generic versus singular tests, the four generic tests that earn their keep on almost every model, the two failure classes generic tests structurally cannot catch, and a measured answer to "how much does a test suite actually buy us".
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHAT A TEST IS ============ -->
+  <section class="section" id="what">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt testing documentation</span>
+      <h2>A dbt test is a query that must return nothing <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">That is the entire mechanism, and its simplicity is why it works. Write a query that selects the rows that should not exist. If it returns rows, the test failed and the build stops. No framework, no assertions library, nothing to learn beyond SQL you already write.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two kinds of dbt test: generic tests declared in schema.yml and singular tests written as SQL files, with what each one catches">
+        <style>
+          .teT { font: 700 13px Inter, sans-serif; fill: #FFFFFF; }
+          .teH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .teC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .teB { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .teN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="30" width="390" height="42" rx="8" fill="#D94E24"/>
+        <text class="teT" x="44" y="57">Generic · 95 in this project</text>
+        <text class="teH" x="44" y="96">One line in schema.yml, reused everywhere</text>
+        <text class="teC" x="44" y="118">unique · not_null · relationships · accepted_values</text>
+        <text class="teC" x="44" y="138">plus two written for this project: dbt_positive_value,</text>
+        <text class="teC" x="44" y="158">unique_combination (grain enforcement)</text>
+        <text class="teH" x="44" y="188">Catches: shape errors</text>
+        <text class="teC" x="44" y="208">duplicates, NULLs, orphan keys, undeclared values</text>
+
+        <rect x="464" y="30" width="390" height="42" rx="8" fill="#2B2B33"/>
+        <text class="teT" x="482" y="57">Singular · 5 in this project</text>
+        <text class="teH" x="482" y="96">A .sql file in tests/, one assertion each</text>
+        <text class="teC" x="482" y="118">reconciles to source · net = gross - discount</text>
+        <text class="teC" x="482" y="138">unknown-member share · mart agrees with fact</text>
+        <text class="teC" x="482" y="158">payments never fan out revenue</text>
+        <text class="teH" x="482" y="188">Catches: meaning errors</text>
+        <text class="teC" x="482" y="208">a definition that moved, a source edited later</text>
+
+        <rect x="26" y="236" width="828" height="66" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="teN" x="46" y="260">Generic tests are cheap enough to add without thinking, and they catch the errors that have a</text>
+        <text class="teN" x="46" y="280">shape. Singular tests cost a few minutes of thought each, and they are the only thing that</text>
+        <text class="teN" x="46" y="300">catches an error whose shape is perfect - which the lab below demonstrates twice.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - two kinds of test, two classes of failure</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The four generic tests worth putting on almost everything<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong><code>unique</code> and <code>not_null</code> on every key.</strong> Together they are the grain claim, enforced. If <code>order_item_sk</code> is not unique, every SUM in the project is wrong and nothing else you test matters.</li>
+          <li><strong><code>relationships</code> on every foreign key.</strong> This is the test that catches a dimension lookup that stopped resolving - the failure that makes inner-join reports quietly lose rows.</li>
+          <li><strong><code>accepted_values</code> on every enum-ish column.</strong> Statuses, tiers, categories, bands. A new value appearing upstream is normal; a new value appearing upstream while every dashboard filters on the old list is a silent exclusion.</li>
+        </ul>
+        <p>Two more are written into this project as custom generic tests, because they came up more than twice: <code>dbt_positive_value</code> for quantities and prices, and <code>unique_combination</code> for composite grain like <code>(order_id, line_no)</code>. Both live in <code>macros/</code> and are one line each to use.</p>
+        <div class="callout tip">
+          <strong>The test budget question</strong>
+          "How many tests should we have?" is the wrong question. The right one: for every model, can you name the failure that would embarrass you most, and is there a test for it? This project ends up at 100 tests over 23 models without anyone counting.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Where singular tests come from<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Every singular test in <code>tests/</code> started as an incident somewhere, and each one is a query you could have written by hand at any point in the last twenty years. What dbt adds is that it now runs on every build:</p>
+        <ul>
+          <li><strong><code>assert_star_reconciles_to_source.sql</code></strong> - does settled revenue in the fact still equal the source, to the cent? The single most valuable assertion in the project, and the one auditors ask for.</li>
+          <li><strong><code>assert_net_amount_equals_its_parts.sql</code></strong> - a derived measure that drifted from its own definition means the model is internally inconsistent.</li>
+          <li><strong><code>assert_mart_agrees_with_fact.sql</code></strong> - a mart that disagrees with the fact it aggregates is a second source of truth, which is worse than no mart.</li>
+          <li><strong><code>assert_no_fact_rows_lost_to_unknown_members.sql</code></strong> - unknown members keep broken lookups countable; this fires if their share climbs past 1%.</li>
+          <li><strong><code>assert_payments_never_fan_out_revenue.sql</code></strong> - joining the payments model must not change revenue. The fan-out guard, as a test.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ THE LAB ============ -->
+  <section class="section" id="lab">
+    <div class="section-kicker">
+      <span class="klabel">Signature lab · 20 min · everyone builds</span>
+      <h2>Break it, then run the suite <span class="tag demo">★ real DuckDB, real dbt tests</span></h2>
+    </div>
+    <p class="lede">Each run builds the whole project from Bazaar's raw schema using the SQL dbt compiled, applies your chosen breakage as real DML, then runs whichever tests you have switched on. A dbt test fails when its query returns rows, so what you see below is the same pass or fail CI would report.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Start with "No tests".</strong> Break something, watch the build succeed anyway, and read what the numbers did. This is the state a hand-written SQL estate is in.</p></div>
+      <div class="step"><p><strong>Switch to generic tests.</strong> Re-run the same breakage. Read which test fired and how many rows offended it - that row count is what a reviewer would see in CI.</p></div>
+      <div class="step"><p><strong>Now try "A metric definition changes silently" with generic tests on.</strong> Everything passes. The revenue number is 3.5% higher and the shape is perfect. Then add the singular tests.</p></div>
+      <div class="step"><p><strong>Finish with "Score all 6 breakages"</strong> for the full matrix: 0 of 6, then 4 of 6, then 6 of 6.</p></div>
+    </div>
+
+    <div id="dbt-lab"></div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The middle column of that scorecard is the whole lesson.</strong> Teams add generic tests quickly, because they are one line and feel like progress - and they genuinely catch the shape errors. Then a definition changes without a rename, or somebody backfills a source after the nightly build, and every test passes while the number is wrong. Those two are not edge cases; they are the two most common ways a mature warehouse loses trust. They need an assertion somebody sat down and thought about, which is what the five files in <code>tests/</code> are.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: read and write the tests themselves <span class="tag demo">★ 8 min · build your own</span></h2>
+    </div>
+    <p class="lede">The lab runs them; now look at what it is running. These editors are the same DuckDB engine, seeded with the built project.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Run a singular test by hand, and make it fail<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This is <code>tests/assert_star_reconciles_to_source.sql</code>, exactly as dbt compiled it. Zero rows means pass. Uncomment the DELETE to make it fail, and notice the test needs no change to catch it.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Zero rows = pass. Uncomment the DELETE and re-run to see the reconciliation break.">
+          <pre class="sql-src">-- DELETE FROM raw.order_items WHERE order_id < 30;
+
+with fact as (
+    select round(sum(net_amount), 2) as amount from main_marts.fct_order_items
+),
+source as (
+    select round(sum(quantity * unit_price - discount_amt), 2) as amount
+    from raw.order_items
+)
+select fact.amount as fact_amount, source.amount as source_amount
+from fact cross join source
+where abs(fact.amount - source.amount) > 0.01;</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Write the test this project is missing<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Nothing currently asserts that a cart's conversion flag agrees with whether it has an order id. Write it: select the rows that should not exist.</p>
+        <div class="sqlbox" data-setup="built" data-caption="A passing test returns zero rows. If this returns any, is_converted and order_id disagree.">
+          <pre class="sql-src">select cart_id, order_id, is_converted
+from main_marts.fct_carts
+where (order_id is null and is_converted)
+   or (order_id is not null and not is_converted);</pre>
+        </div>
+        <p>Zero rows, so the model is consistent today. Saved as a file in <code>tests/</code>, it stays consistent tomorrow - which is the only difference between a query and a test.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Which tests would you delete?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. A hundred tests on twenty-three models sounds thorough, and some of them are noise: a <code>not_null</code> on a column that is part of a unique key, an <code>accepted_values</code> on a column the business changes monthly, a <code>relationships</code> test between two models one owner controls end to end.</p>
+        <p>Noisy tests are worse than missing ones, because a suite that cries wolf gets skipped, and a skipped suite is a suite you do not have. The question to ask of each test: if this fails at 3am, would anybody act on it? If not, delete it - and if the answer is "we would investigate but probably ignore it", make it a warning rather than an error (<code>severity: warn</code> in the config), which is exactly what that setting is for.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 25-35 min total</span></h2>
+    </div>
+    <ul>
+      <li>Run the lab's full matrix once and screenshot the three scoreboxes. That image is the most persuasive test-budget argument you will ever put in front of a stakeholder.</li>
+      <li>On your own project, count the models with zero tests. Add <code>unique</code> and <code>not_null</code> on their keys - that alone usually moves the needle more than anything clever.</li>
+      <li>Pick the metric your business would most hate to be wrong about, and write one singular test that would catch it silently changing. Not a shape test - a meaning test.</li>
+      <li>Find one test in your suite that has never failed and that nobody would act on. Delete it or downgrade it to a warning, and note why.</li>
+      <li>Break your own project on a branch: change a definition without renaming anything, run the suite, and see whether it survives. Bring the result to session b8.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt testing documentation - generic tests, singular tests, custom generic tests, severity</span><span class="note">Part 1 + the lab · running the project's own 100 compiled tests</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Data-quality practice - reconciliation, additivity, referential integrity, grain assertions</span><span class="note">Self-study · the five singular tests, each a real incident class</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">dbt packages that ship test libraries (dbt_utils, dbt_expectations)</span><span class="note">Named only · this project deliberately has zero package dependencies</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Observability and alerting on test failures</span><span class="note">Out of scope by design - that is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · What makes a dbt test fail?</p>
+      <button class="qopt" type="button">A · An assertion helper raising an exception</button>
+      <button class="qopt" type="button">B · Its query returning any rows - the query selects the rows that should not exist</button>
+      <button class="qopt" type="button">C · A mismatch against a stored expected result</button>
+      <p class="qwhy">That is the whole mechanism, and its simplicity is why tests can live next to models and run on every build. It also means any SQL you can write is a test you can write - including the five in <code>tests/</code>.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · A mart's WHERE clause loses its settled-money filter. The column is still <code>net_revenue</code>, every row is well-formed, and revenue is 3.5% higher. Which test catches it?</p>
+      <button class="qopt" type="button">A · <code>not_null</code> on net_revenue</button>
+      <button class="qopt" type="button">B · <code>accepted_values</code> on the merchant tier</button>
+      <button class="qopt" type="button">C · A singular test comparing the mart's total against the fact it aggregates - generic tests structurally cannot see this</button>
+      <p class="qwhy">The shape is perfect: no nulls, no duplicates, no orphan keys. Only an assertion about MEANING catches a definition that moved, which is why this project ships five hand-written ones alongside its 95 generic tests.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Why is a noisy test worse than a missing one?</p>
+      <button class="qopt" type="button">A · A suite that cries wolf gets skipped, and a skipped suite is a suite you do not have</button>
+      <button class="qopt" type="button">B · Noisy tests are slower to run</button>
+      <button class="qopt" type="button">C · They consume warehouse credits</button>
+      <p class="qwhy">The test to keep is the one somebody would act on at 3am. For everything else there is <code>severity: warn</code>, which reports without failing the build - and using it honestly is what keeps the errors meaningful.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 7 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>What a test is</b><span>A query that must return zero rows. That is the entire mechanism.</span></div>
+      <div class="cheat-item"><b>Generic</b><span>One line in schema.yml: unique, not_null, relationships, accepted_values. 95 here.</span></div>
+      <div class="cheat-item"><b>Custom generic</b><span>Any test written twice belongs in macros/. This project adds dbt_positive_value and unique_combination.</span></div>
+      <div class="cheat-item"><b>Singular</b><span>A .sql file in tests/, one assertion. 5 here, each a real incident class.</span></div>
+      <div class="cheat-item"><b>Shape vs meaning</b><span>Generic catches shape. Only singular catches a definition that moved or a source edited later.</span></div>
+      <div class="cheat-item"><b>The measured answer</b><span>0 of 6 breakages caught with no tests, 4 of 6 with generic, 6 of 6 with both.</span></div>
+      <div class="cheat-item"><b>Noise costs trust</b><span>Keep the tests somebody would act on. Everything else is severity: warn.</span></div>
+      <div class="cheat-item"><b>Grain as a test</b><span>unique_combination on (order_id, line_no) is the grain claim, enforced. Next: b8, the marts.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 7 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b6-dimensions-facts-snapshots.html">← Previous: Dimensions, facts, snapshots</a> &nbsp;·&nbsp; <a href="b8-marts-and-questions.html">Next: Marts and the business questions →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/dbt-tests.js?v=1"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/dbt-live.js?v=4"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

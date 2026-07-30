@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 6 · Documentation that stays true - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 6 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 6 of 6</div>
+    <h1>Documentation <span class="accent">that stays true</span></h1>
+    <p class="sub">Every leader reading this has funded a data wiki, and every one of them has watched it rot. That is not a discipline failure and another initiative will not fix it. Documentation kept away from the code has no forcing function, so it decays in weeks and the decay is invisible, which is the worst combination available. This session is about the structural alternative: descriptions that live beside the columns they describe, and a lineage graph derived from the code rather than drawn by a person. It closes the leader track, so it also closes with what to do next.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Frame the session</span>
+      <span class="a2" style="flex:3">3-15 · Why the wiki fails, and what changes</span>
+      <span class="a3" style="flex:2">15-24 · Insist on generated · the honest limits</span>
+      <span class="a4" style="flex:4">24-45 · Readiness check and next 30 days</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The only structural session in this track</h2>
+    </div>
+    <p class="lede">The previous five sessions were mostly about judgement. a1 explained why the role exists, a2 made the case for models as code, a3 reframed a test suite as a trust budget, a4 was the spend decision, a5 was org design. All of those depend on people choosing well and continuing to choose well.</p>
+    <p class="lede">This one is different, and it is the reason it comes last. Generated documentation does not require anybody to keep choosing. It works because of where the text physically lives, and that makes it the one improvement on this list that does not degrade when attention moves elsewhere. If you take one thing from six sessions into your next planning cycle, take this one, because it is the only one that holds without you.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A structural explanation of wiki decay you can repeat to a sceptical executive, the three artifacts to insist are generated rather than written, an honest account of what generated documentation cannot do and where the rest belongs, and a 30-day plan that closes the leader track.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHY THE WIKI FAILS ============ -->
+  <section class="section" id="wiki">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the dbt documentation on docs, and software-engineering practice applied to SQL</span>
+      <h2>Why the wiki fails, and what changes <span class="tag concept">12 min live</span></h2>
+    </div>
+    <p class="lede">The interesting question is not why documentation goes stale. It is why nobody notices. A wiki page that is wrong looks exactly like a wiki page that is right, and it keeps looking that way for years, being quoted in meetings.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 314" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Documentation away from the code versus documentation in the code, and the structural difference">
+        <style>
+          .wT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .wC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .wB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .wN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="404" height="40" rx="8" fill="#2B2B33"/>
+        <text class="wT" x="44" y="53">Documentation kept away from the code</text>
+        <text class="wC" x="44" y="92">a separate page, a separate edit, a separate habit</text>
+        <text class="wC" x="44" y="112">nothing fails when it is skipped, so it is skipped</text>
+        <text class="wC" x="44" y="132">a column rename does not touch the page</text>
+        <text class="wC" x="44" y="152">wrong pages look identical to right pages</text>
+        <text class="wC" x="44" y="172">decays in weeks, and the decay is invisible</text>
+
+        <rect x="450" y="28" width="404" height="40" rx="8" fill="#D94E24"/>
+        <text class="wT" x="468" y="53">Documentation kept in the code</text>
+        <text class="wC" x="468" y="92">the description sits beside the column it describes</text>
+        <text class="wC" x="468" y="112">a rename and its documentation are one change</text>
+        <text class="wC" x="468" y="132">the reviewer sees both, or neither, together</text>
+        <text class="wC" x="468" y="152">lineage is derived from the code, not drawn</text>
+        <text class="wC" x="468" y="172">stale text becomes visible in a diff</text>
+
+        <rect x="26" y="200" width="828" height="100" rx="9" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="wB" x="46" y="224">The structural difference, in one sentence</text>
+        <text class="wN" x="46" y="248">A wiki asks somebody to remember. Documentation in the code asks nobody, because the change</text>
+        <text class="wN" x="46" y="268">and its description are the same commit and the same review. That is not better discipline, it is a</text>
+        <text class="wN" x="46" y="288">different structure - and structure is the only kind of documentation fix that survives a busy quarter.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the difference is where the text lives, not who is diligent</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Say the sentence to your sceptical executive<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>You will be asked why this attempt at documentation will work when the last three did not. Here is the answer, and it does not require anybody to be more committed than they were last time.</p>
+        <p><strong>"The last three attempts asked people to update a second place. This one has no second place."</strong> When the description of a column sits beside the definition of that column, renaming the column and updating its description are the same edit, reviewed by the same person, in the same change. There is no separate task to deprioritise, because there is no separate task.</p>
+        <p>Then add the part that closes it: <strong>and the dependency map is not drawn at all.</strong> It is read out of the project's own build output. This course's project has a lineage graph of 32 nodes and 47 edges, and nobody maintains it. It cannot be out of date, because if the dependencies it describes were wrong, the build that produced it would not have worked.</p>
+        <div class="callout tip">
+          <strong>The reframe that lands</strong>
+          Stop presenting documentation as a deliverable and present it as a by-product. Deliverables get deprioritised in busy quarters. By-products do not, because the thing that produces them is the work itself.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Derived lineage versus the diagram from the offsite<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Almost every organisation has a data-flow diagram somebody made once. It is usually beautiful, usually on a wall or in a shared drive, and usually wrong in at least two places that matter. It is wrong because it was a snapshot of an estate that kept moving, and nothing about the estate moving updates the picture.</p>
+        <p>A derived graph is a categorically different object. Because every model names its inputs in the code rather than pointing at a table directly, the tool can read the whole dependency structure out of the code itself. That has three consequences a leader should care about:</p>
+        <ul>
+          <li><strong>It is accurate by construction.</strong> Not maintained accurately: incapable of being inaccurate about the dependencies that exist in the code. Session b4 of the builder track explores the real graph node by node.</li>
+          <li><strong>It answers "what breaks if we change this" before the change.</strong> Which converts a rename from a three-week discovery process into a question with an answer, and is why teams with derived lineage still rename things.</li>
+          <li><strong>It costs nothing per model.</strong> A drawn diagram gets more expensive as the estate grows, which is precisely why it stops being updated at the size where it would start being useful.</li>
+        </ul>
+        <p>This is the single strongest line in a business case, and it is the one leaders most often leave out because it sounds like a technical detail. It is not. It is the difference between an estate you can change and one you can only add to.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why invisible decay is worse than no documentation<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A missing document is a known gap. Somebody asks a question, nobody has an answer, and the cost is a conversation. That is a cheap failure and it is self-announcing.</p>
+        <p>A wrong document is worse in a specific way: it gets quoted. An analyst reads that a column excludes cancelled orders, builds a report on that basis, and the report is wrong in a manner nobody can trace, because the reasoning was sound and the input was false. Six months later two teams present different numbers and the reconciliation takes a week, and the root cause is a page that was accurate when it was written.</p>
+        <p>This is why "we should just write better documentation" is not a plan. Better writing produces the same decay on a slightly slower schedule, and the failure mode is unchanged. The only fix that changes the failure mode is removing the second place where the text lives, so that being wrong requires the code to be wrong too.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: INSIST ON GENERATED ============ -->
+  <section class="section" id="insist">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers the dbt documentation on generated docs and lineage</span>
+      <h2>Three things to insist are generated <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">You do not need to specify how any of this works. You need to insist on three outputs, refuse the hand-written versions of them, and be able to say why. Everything else about documentation is negotiable.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 382" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The three artifacts a leader should insist are generated rather than written">
+        <style>
+          .gH { font: 700 13px Inter, sans-serif; fill: #22222A; }
+          .gT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .gS { font: 600 10.5px Inter, sans-serif; fill: #F6C3B0; }
+          .gSg { font: 600 10.5px Inter, sans-serif; fill: #E8F3F0; }
+          .gB { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+          .gC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .gN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <text class="gH" x="26" y="34">Insist on the output. Do not specify the method.</text>
+
+        <rect x="26" y="50" width="234" height="66" rx="8" fill="#D94E24"/>
+        <text class="gT" x="42" y="78">1 · Lineage</text>
+        <text class="gS" x="42" y="98">derived, never drawn</text>
+        <rect x="274" y="50" width="580" height="66" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="gB" x="288" y="74">Read out of the project's own build output, not out of anybody's memory.</text>
+        <text class="gC" x="288" y="94">This project: 32 nodes, 47 edges, unmaintained by design. If your diagram was drawn</text>
+        <text class="gC" x="288" y="110">in a workshop, treat it as a historical document rather than a map.</text>
+
+        <rect x="26" y="126" width="234" height="66" rx="8" fill="#2B2B33"/>
+        <text class="gT" x="42" y="154">2 · Column descriptions</text>
+        <text class="gS" x="42" y="174">beside the column itself</text>
+        <rect x="274" y="126" width="580" height="66" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="gB" x="288" y="150">The meaning of a field lives where the field is defined, so both change together.</text>
+        <text class="gC" x="288" y="170">The test: is the description visible in the same place as the definition? If it sits in</text>
+        <text class="gC" x="288" y="186">a different system, you have two truths and no way to tell which one is current.</text>
+
+        <rect x="26" y="202" width="234" height="66" rx="8" fill="#3F7F72"/>
+        <text class="gT" x="42" y="230">3 · The test list</text>
+        <text class="gSg" x="42" y="250">per model, published</text>
+        <rect x="274" y="202" width="580" height="66" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="gB" x="288" y="226">What must remain true about this table, listed, where a consumer can read it.</text>
+        <text class="gC" x="288" y="246">This project: 100 tests over 23 models, 95 generic and 5 written by hand. Session a3</text>
+        <text class="gC" x="288" y="262">called that a trust budget. Published, it becomes a promise a consumer can rely on.</text>
+
+        <rect x="26" y="288" width="828" height="80" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="gB" x="46" y="312">Why these three and not a longer list</text>
+        <text class="gN" x="46" y="334">Each one is currently maintained by hand somewhere in your organisation, each one is wrong today,</text>
+        <text class="gN" x="46" y="354">and each one costs nothing once the models are in the tool. Three items you can actually enforce.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three outputs, no method specified</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Generated, never written</th><th>Written by a person, and owned</th><th>What each is good for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Lineage.</strong> What depends on what, read from the code. 32 nodes and 47 edges in this project's case.</td>
+          <td><strong>Why the design is what it is.</strong> Why this grain, why this dimension conformed, why revenue excludes what it excludes.</td>
+          <td>Generated lineage answers "what breaks if we change this" mechanically. Written rationale answers "should we change this", which no tool can derive because the reasons were never in the code.</td>
+        </tr>
+        <tr>
+          <td><strong>Column descriptions.</strong> The meaning of each field, stored beside its definition so both move in one change.</td>
+          <td><strong>Known compromises.</strong> The shortcut taken under deadline, the field that is approximate, the source you do not fully trust yet.</td>
+          <td>Generated descriptions stop analysts guessing what a field means. A written compromise list stops the next person rediscovering a decision at the worst moment, and gives it an owner.</td>
+        </tr>
+        <tr>
+          <td><strong>The test list per model.</strong> What must stay true about this table, published where consumers can read it.</td>
+          <td><strong>Consumers outside the tool.</strong> Dashboards, exports and syncs, declared deliberately, because the graph cannot see them.</td>
+          <td>A published test list turns a3's trust budget into a promise. A declared consumer list turns an invisible dependency into one the impact analysis includes.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What to say when your team proposes a catalogue project instead<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This proposal will arrive, and it will be well intentioned. A separate catalogue tool, populated by the team, describing all the tables. It sounds like more than generated documentation because it covers more surface area.</p>
+        <p>The question to ask is not whether the catalogue is good. It is: <strong>what makes an entry in it wrong loudly rather than quietly?</strong> If the answer is a person remembering to update it, you have rebuilt the wiki with a nicer interface and the same failure mode, and you now have three places where a column's meaning lives instead of two.</p>
+        <p>There is a legitimate version of this. A catalogue that reads its descriptions and lineage from the transformation project rather than storing its own is genuinely useful, because it adds discovery and search across systems on top of a source of truth that stays true. The distinction is direction: does the catalogue pull from the code, or does a human push into the catalogue? Pull is an amplifier. Push is a wiki.</p>
+        <div class="callout tip">
+          <strong>One question, asked once</strong>
+          "Where does the text physically live, and what breaks if it is wrong?" Every documentation proposal you will ever be shown can be sorted with that question in under a minute.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The freshness signal you get for free<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Here is a benefit that rarely makes the business case and is worth knowing about. When descriptions live in the code, they inherit the code's history. You can see when a description was last touched, by whom, and in the same change as what.</p>
+        <p>That gives you something no wiki gives you: a way to find documentation that is probably wrong. If a model's logic was edited four times this year and its description has not been touched in eighteen months, that is a specific, findable, prioritisable piece of staleness. On a wiki, every page looks equally current, which is why nobody can triage them and why the annual documentation clean-up never happens twice.</p>
+        <p>It is a small mechanism and it changes documentation from a monolith you cannot maintain into a list you can work through. Ask your team whether they can produce that list. If the answer is yes, they have already built the thing this session is asking for.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: THE HONEST LIMITS ============ -->
+  <section class="section" id="limits">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers the dbt documentation on exposures</span>
+      <h2>The honest limits <span class="tag concept">4 min live</span></h2>
+    </div>
+    <p class="lede">Generated documentation has exactly two blind spots and both of them matter. If you present it as complete, you will be caught out by one of them within a quarter, and the credibility cost will be larger than the thing you were overselling.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 318" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="What generated documentation tells you, what it cannot tell you, and what exposures are for">
+        <style>
+          .lT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .lC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .lR { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .lK { font: 600 11.5px Inter, sans-serif; fill: #22222A; }
+        </style>
+
+        <rect x="26" y="28" width="404" height="40" rx="8" fill="#3F7F72"/>
+        <text class="lT" x="44" y="53">What generated docs tell you: what IS</text>
+        <text class="lC" x="44" y="92">every model, column and type that exists</text>
+        <text class="lC" x="44" y="112">what each column means, if somebody wrote it</text>
+        <text class="lC" x="44" y="132">what depends on what, derived from the code</text>
+        <text class="lC" x="44" y="152">what is tested, and what the tests assert</text>
+        <text class="lC" x="44" y="172">when the description was last touched, and by whom</text>
+
+        <rect x="450" y="28" width="404" height="40" rx="8" fill="#991B1B"/>
+        <text class="lT" x="468" y="53">What they cannot tell you: WHY</text>
+        <text class="lC" x="468" y="92">why this grain and not a finer one</text>
+        <text class="lC" x="468" y="112">why revenue excludes what it excludes</text>
+        <text class="lC" x="468" y="132">which compromises were deliberate</text>
+        <text class="lC" x="468" y="152">what was tried before and abandoned</text>
+        <text class="lC" x="468" y="172">who to ask, and who decided</text>
+
+        <rect x="26" y="200" width="828" height="104" rx="9" fill="#FEF2F2" stroke="#991B1B"/>
+        <text class="lR" x="46" y="224">The second blind spot: the graph stops at the edge of the tool</text>
+        <text class="lK" x="46" y="248">Dashboards, scheduled exports and syncs into other systems are all genuinely downstream of your</text>
+        <text class="lK" x="46" y="268">marts and none of them appear in a derived graph. So a change can be safe according to the lineage</text>
+        <text class="lK" x="46" y="288">and break a board report. Declaring those consumers deliberately is exactly what exposures are for.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - two blind spots, both worth naming out loud</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Where the WHY belongs, and who owns it<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Generated documentation describes the estate as it is. It has no access to the reasoning that produced it, because the reasoning was never written into the code and mostly could not be.</p>
+        <p>That material is real and it is what people actually need in the hard moments: why the fact table is at order-line grain rather than order grain, why the revenue definition excludes what it excludes, which compromise was accepted under deadline and is still outstanding, and what was tried in the first attempt and abandoned. None of it is derivable. All of it needs prose that somebody writes and somebody owns.</p>
+        <p>The sibling course, <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>, keeps exactly this in a contract file alongside the model: the decisions, the grain justification, the known compromises, and the name against each. That is where it belongs. Not in the wiki, because it has the same decay problem, and not in generated docs, because it cannot be generated. Beside the model, written by hand, with an owner and a date.</p>
+        <div class="callout tip">
+          <strong>The division to hold</strong>
+          Generate everything that describes what is. Write, by hand and with a named owner, everything that explains why. Confusing the two is how you end up hand-maintaining things that should be free and leaving unwritten the things only a person can say.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Exposures, in leader terms<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The derived graph knows about every dependency expressed inside the transformation project. It knows nothing about anything outside it, and the things outside it are the ones your stakeholders see.</p>
+        <p>The practical effect: a change can be entirely safe according to the lineage and still break the report the executive committee reads on Monday, because that report queries a mart directly and the graph has never heard of it. Nobody is at fault. The information genuinely was not there.</p>
+        <p>The mechanism for closing that gap is a declared consumer, which dbt calls an exposure: a dashboard, an export or a sync recorded deliberately in the project so it appears in the graph and in the impact analysis alongside everything else. It is a small amount of work with an unusual property for documentation, in that it makes something previously invisible show up in the blast radius automatically from then on.</p>
+        <p>As a leader you do not need the mechanism. You need to ask one question and then insist on the answer being written down somewhere the graph can see: <strong>which dashboards, exports and syncs read directly from our models?</strong> The builder track wires this up; your job is to make sure the list exists.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discuss">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 16 min · everyone participates</span>
+      <h2>Readiness check <span class="tag demo">★ no code, no laptops</span></h2>
+    </div>
+    <p class="lede">Three exercises. The third one takes ten minutes in your next team meeting, needs nothing but a whiteboard, and reliably produces a list nobody knew was missing.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Audit what you have.</strong> Five most-viewed documentation pages, last edit date, one factual claim each checked against reality.</p></div>
+      <div class="step"><p><strong>Sort your artifacts.</strong> For each thing your team maintains by hand: could this be generated, and if so why is it not?</p></div>
+      <div class="step"><p><strong>Name the invisible consumers.</strong> Every dashboard, export and sync that reads your top three tables directly.</p></div>
+      <div class="step"><p><strong>Then write the 30-day plan.</strong> Three actions, three owners, three dates. Not a strategy.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · the freshness audit<span class="mini">6 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Open our data documentation. Take the five most-viewed pages. For each one, read out the last edit date, and then pick one factual claim on the page and check it against the warehouse right now."</p>
+        <p><strong>What a good answer sounds like.</strong> Discomfort, quickly followed by specifics: "this one says the table is refreshed hourly and it has been daily since March." That is the session's argument demonstrated on your own material in under six minutes, and it is far more persuasive than anything on these slides because your team found it themselves.</p>
+        <p><strong>The failure mode to listen for.</strong> "The dates are recent, so we are fine." Recent edit dates measure attention, not accuracy, and pages get touched for formatting. Insist on the factual check, on the highest-traffic page, in the room. The most-quoted page being wrong is the finding that changes the next planning cycle.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · generated or written<span class="mini">6 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "List everything we currently maintain by hand that describes our data: the lineage diagram, the column glossary, the metric definitions document, the dashboard inventory, all of it. Now sort each one into three piles. Could be generated today. Cannot be generated, and needs a named owner. Should not exist at all."</p>
+        <p><strong>What a good answer sounds like.</strong> The generated pile is larger than anyone expected, and the third pile is not empty. Something gets moved to "should not exist" because it duplicates another document, and somebody says so out loud. Ideal output is two or three items you stop maintaining this month, and one item that moves from nobody to a named owner.</p>
+        <p><strong>The failure mode to listen for.</strong> Everything landing in "cannot be generated" with justifications about how the organisation is special. Some of that is real, most of it is attachment to work already done. Test each claim against the three artifacts in Part 2: lineage, column descriptions, test lists. If a team insists those three cannot be generated for them, the reason is usually that the models are not in a transformation tool yet, which is session a4's question and not a documentation question at all.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 3 · name the invisible consumers<span class="mini">10 min · run this in your next team meeting</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The prompt.</strong> "Pick our three most-used tables. Now list, on the board, every single thing that reads them directly and is not one of our own models: dashboards, scheduled exports, the sync into the CRM, that spreadsheet finance refreshes, the API somebody built. Then tell me where that list is currently written down."</p>
+        <p><strong>What a good answer sounds like.</strong> A longer list than anyone predicted, with two or three items that surprise the room, and an honest "nowhere" to the second half of the question. That combination is exactly what exposures exist for, and you have now produced the input list in ten minutes without any tooling.</p>
+        <p><strong>The failure mode to listen for.</strong> A short, confident list of the official dashboards only. Ask specifically about the unofficial ones: the export somebody set up for a board pack, the sync into a sales tool, the direct connection from a spreadsheet. Those are precisely the consumers that break loudly and are absent from every diagram, and the person who knows about them is usually not in the room, which is itself worth noticing.</p>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The strongest version of this argument is one you can measure on your own estate in an afternoon.</strong> Take the most-quoted number in your company. Ask three questions: where is its definition written, when was that text last changed, and when was the logic behind it last changed. In most organisations the definition lives in a slide or a wiki page, the text was last edited more than a year ago, and the logic was edited last quarter. Nothing about that is negligence. It is the predictable output of keeping the description in a different place from the thing it describes, and no amount of commitment fixes it, because the commitment was never the constraint. Move the description next to the definition and the same three questions have boring answers forever.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="ask">
+    <div class="section-kicker">
+      <span class="klabel">Take this back to your team</span>
+      <h2>Questions to ask your data team <span class="tag concept">use them this week</span></h2>
+    </div>
+    <p class="lede">Seven questions. Ask the second one first if you only have time for one, because the answer reframes everything else.</p>
+    <table class="clean">
+      <thead><tr><th>Ask</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"When was our most-viewed documentation page last edited, and is it still true?"</td>
+          <td>Two facts, one minute, and they are almost never consistent with each other. It converts an abstract argument about decay into a specific finding on your own material.</td>
+        </tr>
+        <tr>
+          <td>"Is our lineage diagram drawn or derived?"</td>
+          <td>The single highest-leverage question in this session. Drawn means it is a historical document. Derived means it cannot be wrong about the dependencies in the code, and that difference decides whether you can safely change anything.</td>
+        </tr>
+        <tr>
+          <td>"Can you show me a column's description in the same place the column is defined?"</td>
+          <td>Tests the structure rather than the intent. If the description lives in another system, you have two truths and no way to know which is current, whatever the policy says.</td>
+        </tr>
+        <tr>
+          <td>"Which dashboards, exports and syncs read directly from our models, and where is that list?"</td>
+          <td>Surfaces the consumers the graph cannot see. "Nowhere" is the usual answer and it is exactly the gap exposures close, so the question doubles as the work item.</td>
+        </tr>
+        <tr>
+          <td>"Where do we record why a model is shaped this way, not just what it contains?"</td>
+          <td>Separates generated from written. If there is no answer, the design reasoning exists only in one person's head, which is a5's single-point-of-failure list with a different label.</td>
+        </tr>
+        <tr>
+          <td>"What did we knowingly compromise on, and who owns that decision?"</td>
+          <td>Known compromises are the most valuable undocumented asset in any data team. Written down with a name and a date, they stop being rediscovered at the worst possible moment.</td>
+        </tr>
+        <tr>
+          <td>"If I rename a column tomorrow, what tells me who I break?"</td>
+          <td>The whole session in one question. A good answer is a command or a graph. A bad answer is a person's name, which means your impact analysis is somebody's memory and it does not take annual leave into account.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework · the next 30 days</span>
+      <h2>Five things to do, in this order <span class="tag exercise">◐ the leader track's closing brief</span></h2>
+    </div>
+    <ul>
+      <li><strong>Week 1: run the freshness audit and circulate the result unedited.</strong> Five most-viewed pages, last edit date, one factual claim checked on each. Do not soften it and do not attach a remediation plan yet. The finding is the mandate for everything below, and it stops being persuasive if you present it as already solved.</li>
+      <li><strong>Week 1: ask whether your lineage is drawn or derived, and write the answer down.</strong> If it is drawn, you now know that every impact assessment your team has done this year was based on memory. That is the sentence to take to your next planning conversation, and it does not need a slide.</li>
+      <li><strong>Week 2: produce the invisible-consumer list.</strong> Every dashboard, export and sync reading your top tables directly, with a named owner for each. This is the cheapest risk reduction available to you and it needs no tooling decision, no budget and no vendor.</li>
+      <li><strong>Week 3: name an owner for the written half.</strong> One person accountable for why the models are shaped the way they are and what compromises are outstanding, kept beside the models rather than in a wiki. Session a5's ownership map already tells you who it should be.</li>
+      <li><strong>Week 4: close the loop back to a4 with what you have learned.</strong> You now have the two numbers, the infrastructure you already own, an ownership map, a review answer, and a documentation audit. That is a complete business case written in operational language, and it is a considerably better artifact than the one you would have written in week one.</li>
+    </ul>
+    <div class="callout win">
+      <strong>★ The leader track is complete</strong>
+      Six sessions: why the role exists (a1), models as code (a2), tests as the trust budget (a3), buy versus build (a4), the team shape (a5), and documentation that stays true. If you now want to see all of it actually built rather than argued, the builder track starts at <a href="b1-hand-written-to-project.html">b1 · From hand-written SQL to a project</a>, where the same marketplace warehouse is rebuilt as 23 models with 100 tests and reproduces the hand-built numbers to the cent. And when you are ready to run it on a schedule and monitor it, that is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>, because dbt does not schedule itself and nothing in these six sessions changes that.
+    </div>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The dbt documentation - generated docs, column descriptions, derived lineage</span><span class="note">Parts 1-2 · the graph quoted here is this project's own, 32 nodes and 47 edges, read from its build output</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The dbt documentation - exposures, for the consumers a derived graph cannot see</span><span class="note">Part 3 · treated as the leader's list-making job. Wired up in the builder track</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Software-engineering practice applied to SQL - documentation in the same change as the code</span><span class="note">Part 1 · the structural argument, plus the freshness signal you inherit from the code's history</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation - model contracts as a published promise to consumers</span><span class="note">Part 2 · named where the test list becomes a promise. Taught in the builder track</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - the grain and conformance decisions that need written rationale</span><span class="note">Part 3 · the written half belongs in the contract file of <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Your team proposes a new catalogue tool, populated by hand, to finally fix documentation. What is the question that decides whether to fund it?</p>
+      <button class="qopt" type="button">A · Whether it integrates with the warehouse and the BI tool</button>
+      <button class="qopt" type="button">B · Where the text physically lives, and what breaks if an entry is wrong - because if the answer is "somebody must remember", you have rebuilt the wiki with a nicer interface</button>
+      <button class="qopt" type="button">C · Whether the team has capacity to populate it this quarter</button>
+      <p class="qwhy">Direction is the whole distinction. A catalogue that pulls descriptions and lineage from the transformation project adds discovery on top of something that stays true. A catalogue humans push into adds a third place where a column's meaning lives, with the same invisible decay as the first two.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · A change passes every test and the lineage shows nothing downstream affected. On Monday the executive committee's report is broken. What happened?</p>
+      <button class="qopt" type="button">A · A test was missing, and the test suite needs widening</button>
+      <button class="qopt" type="button">B · The lineage graph was out of date</button>
+      <button class="qopt" type="button">C · The report reads a model directly and is outside the tool, so it is genuinely downstream and completely absent from a derived graph</button>
+      <p class="qwhy">A derived graph is accurate about every dependency expressed inside the project and blind to everything else: dashboards, scheduled exports, syncs into other systems. That is the second blind spot, and declaring those consumers deliberately, which dbt calls exposures, is what closes it.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Which of these should NOT be generated, and needs a named human owner instead?</p>
+      <button class="qopt" type="button">A · Why the fact table is at this grain, and which compromises were knowingly accepted</button>
+      <button class="qopt" type="button">B · The list of tests defending each model</button>
+      <button class="qopt" type="button">C · Which models depend on which</button>
+      <p class="qwhy">Generated documentation describes what IS. It has no access to reasoning that was never in the code, and the design rationale plus the known compromises are exactly that. Keep them beside the models, written by hand, with an owner and a date, the way the modeling course's contract file does. Generate everything else.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>The whole leader track on one card <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>a1 · Why the role exists</b><span>A gap opened between landing data and asking questions of it. Somebody owns the middle now.</span></div>
+      <div class="cheat-item"><b>a2 · Models as code</b><span>Version control, review, environments and rollback applied to SQL. Review is the load-bearing part.</span></div>
+      <div class="cheat-item"><b>a3 · Tests as trust</b><span>100 tests on 23 models is a governance artifact. Decide what blocks a build; noise costs trust.</span></div>
+      <div class="cheat-item"><b>a4 · Buy vs build</b><span>Count models and editors first. Cloud sells operations and onboarding, never capability.</span></div>
+      <div class="cheat-item"><b>a5 · Team shape</b><span>Three roles, three layers, explicit ownership. Central owns the shared core, domains own their marts.</span></div>
+      <div class="cheat-item"><b>a6 · Docs that stay true</b><span>Generate lineage, column descriptions and test lists. Write the WHY by hand, with an owner.</span></div>
+      <div class="cheat-item"><b>The measured claim</b><span>Same warehouse twice. 111,906.48 both ways, to the cent. 32 nodes and 47 edges, derived.</span></div>
+      <div class="cheat-item"><b>What is next</b><span>See it built: the builder track, b1. Schedule and monitor it: learn-dataops. dbt does not schedule itself.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 6 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="a5-team-shape.html">← Previous: The team shape</a> &nbsp;·&nbsp; <a href="../index.html">← All sessions</a></span>
+    <span>The leader track is complete. To see it built, start the builder track at <a href="b1-hand-written-to-project.html">b1 · From hand-written SQL to a project</a>; to schedule and monitor what it produces, go to <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>.</span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

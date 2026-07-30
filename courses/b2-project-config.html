@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 2 · The project config - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 2 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 2 of 10</div>
+    <h1>The project <span class="accent">config</span></h1>
+    <p class="sub">Two small YAML files decide almost everything about how this project behaves. <code>dbt_project.yml</code> says what gets built and how; <code>profiles.yml</code> says where it lands and with what credentials. Neither is boilerplate you copy once and forget: every line is a decision that changes an object in your warehouse. Today we walk both files line by line, argue about materializations as a per-layer choice rather than a per-model habit, and prove in a live warehouse what "view" and "table" actually mean when the raw data changes underneath you.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-17 · Two files, two jobs</span>
+      <span class="a3" style="flex:5">17-42 · Materializations, schemas and vars</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The config is the project's contract with dbt</h2>
+    </div>
+    <p class="lede">Session b1 ran the whole project with one command and read the output. The reason one command was enough is that the project already told dbt everything it needed: which folder holds models, which connection to use, what each layer should be materialized as, which schema each layer lands in, and which dates the business questions mean by "the last fortnight". None of that lives in a model. All of it lives in two files you can read in three minutes.</p>
+    <p class="lede">This is the shortest session in the builder track and the one that pays off most often, because almost every "why did dbt do that" question is answered here. A model built as a table when you wanted a view, an object that appeared in the wrong schema, a colleague whose build overwrote yours, a date that means one thing in three models: all config, all fixable in one place.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      Both config files read line by line as decisions rather than syntax, a defensible answer to "view or table or ephemeral or incremental" for each layer, and proof in a live warehouse of what a view gives you that a table does not.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: TWO FILES ============ -->
+  <section class="section" id="two-files">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on project configuration and profiles</span>
+      <h2>Two files, two jobs <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">The separation between these two files is the single best design decision in dbt's configuration model, and it is the one people skim past. One file describes the project and is committed to git for everyone to review. The other describes a machine, a warehouse and a set of credentials, and is deliberately not in the repository at all.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 372" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="dbt_project.yml describes what gets built and is committed to git; profiles.yml describes where it lands and holds credentials outside version control">
+        <style>
+          .p2T { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .p2H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .p2C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .p2N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="400" height="34" rx="8" fill="#2B2B33"/>
+        <text class="p2T" x="44" y="48">dbt_project.yml · what gets built</text>
+        <rect x="26" y="66" width="400" height="146" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="p2C" x="44" y="92">name: bazaar - the project's own identity</text>
+        <text class="p2C" x="44" y="112">profile: bazaar - a pointer, not a connection</text>
+        <text class="p2C" x="44" y="132">model-paths, macro-paths - where dbt looks</text>
+        <text class="p2C" x="44" y="152">models: - materialization per LAYER</text>
+        <text class="p2C" x="44" y="172">vars: - the analysis windows, defined once</text>
+        <text class="p2C" x="44" y="196">committed to git, reviewed in pull requests</text>
+
+        <rect x="454" y="26" width="400" height="34" rx="8" fill="#D94E24"/>
+        <text class="p2T" x="472" y="48">profiles.yml · where it lands</text>
+        <rect x="454" y="66" width="400" height="146" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="p2C" x="472" y="92">target: dev - which output is the default</text>
+        <text class="p2C" x="472" y="112">type: duckdb - which warehouse, which driver</text>
+        <text class="p2C" x="472" y="132">path / host / schema - how to connect</text>
+        <text class="p2C" x="472" y="152">threads: 4 - how much parallelism to use</text>
+        <text class="p2C" x="472" y="172">credentials - never in version control</text>
+        <text class="p2C" x="472" y="196">lives in ~/.dbt/, one per machine per person</text>
+
+        <rect x="26" y="234" width="828" height="120" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="p2H" x="46" y="258">Why the split is not bureaucracy</text>
+        <text class="p2N" x="46" y="282">the same project, unchanged, runs against dev or prod by switching one target</text>
+        <text class="p2N" x="46" y="302">nothing about the environment is in the code, and no secret is in the repository</text>
+        <text class="p2N" x="46" y="322">a new joiner clones the repo, writes their own profile, and gets their own sandbox</text>
+        <text class="p2N" x="46" y="342">so a code review is about the model, never about somebody's connection string</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - what gets built, versus where it lands</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>dbt_project.yml, line by line<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This is the whole file for the Bazaar project. Nothing has been trimmed for the slide.</p>
+        <table class="clean">
+          <thead><tr><th>Line</th><th>The decision it makes</th></tr></thead>
+          <tbody>
+            <tr><td><code>name: bazaar</code></td><td>the project's identity. It becomes the top key under <code>models:</code>, which is why the config block reads <code>models: bazaar: staging:</code>. Rename the project and you must rename that key too</td></tr>
+            <tr><td><code>version: "1.0.0"</code></td><td>your project's version, not dbt's. Useful when the project is installed as a package by another project, ignorable otherwise</td></tr>
+            <tr><td><code>profile: bazaar</code></td><td>a <em>pointer</em>, by name, to an entry in <code>profiles.yml</code>. This is the whole seam between code and environment: the project asks for a profile called bazaar and does not care what is in it</td></tr>
+            <tr><td><code>model-paths: ["models"]</code></td><td>where dbt looks for models. Alongside it, <code>test-paths</code>, <code>macro-paths</code> and <code>analysis-paths</code> point at this project's singular tests, its three hand-written macros, and the analyses folder</td></tr>
+            <tr><td><code>clean-targets</code></td><td>what <code>dbt clean</code> is allowed to delete. Worth reading before you run it, because it deletes without asking</td></tr>
+            <tr><td><code>models:</code></td><td>the layer block: materialization and schema per folder. This is the interesting part, and Part 2 is about it</td></tr>
+            <tr><td><code>vars:</code></td><td>project-level variables. Here, the analysis windows the business questions use, so no model hard-codes a date</td></tr>
+          </tbody>
+        </table>
+        <p>Two things are worth noticing by their absence. There is no list of models, because dbt discovers them from the folder. And there is no build order, because dbt derives that from <code>ref()</code> - the subject of session b4. A config file that had to list either of those would be a config file somebody forgets to update.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>profiles.yml, targets, and the reason secrets stay out of the repo<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The profile for this project is four lines long because DuckDB is a file:</p>
+        <ul>
+          <li><strong><code>bazaar:</code></strong> the profile name. It has to match <code>profile:</code> in <code>dbt_project.yml</code>, and a mismatch here is the single most common first-day error in dbt.</li>
+          <li><strong><code>target: dev</code></strong> which output is used when you do not say. Everything else in <code>outputs:</code> is available with <code>dbt build --target prod</code>.</li>
+          <li><strong><code>outputs: dev:</code></strong> one named environment. <code>type: duckdb</code> plus <code>path: ../bazaar.duckdb</code> is this project's entire connection; on Snowflake or BigQuery the same block holds an account, a role, a warehouse, a dataset and a key.</li>
+          <li><strong><code>threads: 4</code></strong> how many models dbt builds at once. The DAG decides what <em>can</em> run in parallel; threads decide how much of that permission you use.</li>
+        </ul>
+        <p>In this course the profile sits inside the project so the repository runs with one command and no setup. In production it belongs in <code>~/.dbt/profiles.yml</code> or in environment variables, for a reason worth stating plainly: the moment a credential is in git it is in every clone, every fork and every CI log forever, and rotating it becomes a project rather than a task.</p>
+        <div class="callout tip">
+          <strong>The pattern to copy</strong>
+          One profile, several targets, credentials from environment variables. <code>dev</code> points at a personal schema, <code>ci</code> at a throwaway one, <code>prod</code> at the real thing. The models never change. That is what makes "test it before shipping it" a habit rather than a heroic effort.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The four config mistakes that cost a whole afternoon<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Profile name mismatch.</strong> <code>profile: bazaar</code> in the project, <code>bazaar_duckdb:</code> in the profiles file. dbt cannot guess, so it fails at parse time with a message about a missing profile. Read the two names side by side before you read anything else.</li>
+          <li><strong>The wrong indentation under <code>models:</code>.</strong> Configs cascade by folder, and a <code>+materialized:</code> one level too high applies to every model in the project. Symptom: your staging views are suddenly tables and the build got slower for no reason.</li>
+          <li><strong>Forgetting that <code>+</code> prefix.</strong> <code>materialized: view</code> without the plus is read as a folder name, not a config. dbt tells you it cannot find those models. The plus means "this is a config, not a path".</li>
+          <li><strong>Editing config in models when it belongs in the project.</strong> A <code>{{ config(materialized='table') }}</code> block inside a model wins over the project file, which is correct and useful for one exception - and a mess when it is the normal way your team sets materializations. Exceptions belong in the model; policy belongs in <code>dbt_project.yml</code>.</li>
+        </ul>
+        <p>Everything in the layer block can also be set per model, per folder or on the command line, and the precedence runs from most specific to least. If a model behaves in a way the project file does not explain, check the model's own config block first.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: MATERIALIZATIONS ============ -->
+  <section class="section" id="materializations">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers dbt documentation on materializations, plus the community layering convention</span>
+      <h2>Materialization is a decision per layer <span class="tag concept">8 min live</span></h2>
+    </div>
+    <p class="lede">A materialization is dbt's answer to "what should this SELECT become in the warehouse". There are four you will use, and the useful move is to decide them <em>per layer</em> and write the decision once, rather than deciding per model and having twenty-three separate opinions nobody can summarise.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Materialization declared per layer: view for staging, ephemeral for intermediate, table for marts, incremental as the fourth option, plus schema suffixes and project vars">
+        <style>
+          .m2T { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .m2L { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .m2C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .m2H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .m2N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="22" width="828" height="34" rx="8" fill="#2B2B33"/>
+        <text class="m2T" x="44" y="44">Layer</text>
+        <text class="m2T" x="204" y="44">declared once as</text>
+        <text class="m2T" x="404" y="44">what lands in the database</text>
+        <text class="m2T" x="600" y="44">why that is the right call</text>
+
+        <rect x="26" y="64" width="828" height="40" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="m2L" x="44" y="89">staging</text>
+        <text class="m2C" x="204" y="89">+materialized: view</text>
+        <text class="m2C" x="404" y="89">8 views in main_staging</text>
+        <text class="m2C" x="600" y="89">cheap, always fresh, no storage</text>
+
+        <rect x="26" y="110" width="828" height="40" rx="6" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="m2L" x="44" y="135">intermediate</text>
+        <text class="m2C" x="204" y="135">+materialized: ephemeral</text>
+        <text class="m2C" x="404" y="135">nothing lands at all</text>
+        <text class="m2C" x="600" y="135">inlined as a CTE, cannot be misused</text>
+
+        <rect x="26" y="156" width="828" height="40" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="m2L" x="44" y="181">marts</text>
+        <text class="m2C" x="204" y="181">+materialized: table</text>
+        <text class="m2C" x="404" y="181">12 tables in main_marts</text>
+        <text class="m2C" x="600" y="181">built once, then queried all day</text>
+
+        <rect x="26" y="202" width="828" height="40" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="m2L" x="44" y="227">not used here</text>
+        <text class="m2C" x="204" y="227">+materialized: incremental</text>
+        <text class="m2C" x="404" y="227">a table, appended per run</text>
+        <text class="m2C" x="600" y="227">state, plus a full-refresh path</text>
+
+        <rect x="26" y="256" width="828" height="60" rx="9" fill="#E8F3F0"/>
+        <text class="m2H" x="46" y="280">+schema: staging becomes main_staging - the target's schema plus a suffix</text>
+        <text class="m2N" x="46" y="300">so dev and prod differ by one prefix, and nobody queries the wrong layer by accident</text>
+
+        <rect x="26" y="330" width="828" height="76" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="m2H" x="46" y="354">vars: one definition of "the last fortnight"</text>
+        <text class="m2N" x="46" y="376">recent_window_start 2026-06-16 · prior_window_start 2026-06-02 · incident_day 2026-06-10</text>
+        <text class="m2N" x="46" y="396">no model hard-codes a date, so no two models can disagree about the window</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - four layers, four decisions, one file</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Materialization</th><th>When it is the right answer</th><th>What it costs</th></tr></thead>
+      <tbody>
+        <tr><td><code>view</code></td><td>staging. Thin transformations that are read by other models rather than by people, and must never be stale. All 8 staging models here</td><td>the work happens on every read, so a view over a view over a view eventually hurts the person querying the top</td></tr>
+        <tr><td><code>table</code></td><td>marts. Anything queried constantly by dashboards or people, or expensive enough that you want the cost paid once per build. All 12 marts here</td><td>storage, plus staleness between builds. A table is only as fresh as your last run, which is why scheduling matters and why that is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a></td></tr>
+        <tr><td><code>ephemeral</code></td><td>intermediate. Plumbing that exists to keep a mart readable: joins, fan-out guards, a payment roll-up. The 3 intermediate models here</td><td>nothing is materialized, so you cannot query it while debugging and a deep chain makes one enormous compiled query. Read <code>target/compiled/</code> when it confuses you</td></tr>
+        <tr><td><code>incremental</code></td><td>only when a full rebuild genuinely hurts: hours of compute, or a bill you can feel. Not used in this project, and honestly so - the biggest table here is 1,434 rows</td><td>state to reason about. You now own a <code>unique_key</code>, an <code>is_incremental()</code> branch, late-arriving rows, and a <code>--full-refresh</code> escape hatch somebody has to remember exists</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why per layer beats per model<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Materialization per model looks like flexibility and behaves like entropy. Four things go wrong, reliably:</p>
+        <ul>
+          <li><strong>Nobody can state the policy.</strong> Ask a team with per-model configs what their staging layer is materialized as and you get "it depends". Ask a team with a layer block and you get "views" plus the reason.</li>
+          <li><strong>Drift is invisible.</strong> One staging model built as a table because somebody was debugging a slow dashboard in March is indistinguishable from a deliberate decision six months later.</li>
+          <li><strong>The layer stops meaning anything.</strong> Layers are only useful as a promise about cost and freshness. A staging layer where some models are tables and some are views makes no promise at all.</li>
+          <li><strong>Review gets harder.</strong> A change to the project file is one diff a reviewer reads in ten seconds. Twenty-three config blocks are twenty-three places to look.</li>
+        </ul>
+        <p>The rule I would defend in any code review: <strong>policy in <code>dbt_project.yml</code>, exceptions in the model, and an exception needs a comment saying why.</strong> One mart that is genuinely too expensive to rebuild can absolutely be incremental. It just needs to be visibly an exception rather than the start of a trend.</p>
+        <div class="callout tip">
+          <strong>The cheapest sanity check there is</strong>
+          The build output prints the materialization it actually used: <code>OK created sql view model main_staging.stg_bazaar__users</code>. If that says <code>table</code> where you expected <code>view</code>, your config cascade is not doing what you think.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>+schema, and where objects actually land<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>+schema: staging</code> does not mean "put these in a schema called staging". It means "take the schema from my target and append <code>_staging</code>". In this project the target schema is <code>main</code>, so the objects land in <code>main_staging</code> and <code>main_marts</code> - which you saw in b1 and will query again in a minute.</p>
+        <p>That suffix behaviour is what makes multi-environment work painless. Your target uses your own schema, so your staging views are <code>dbt_phoebe_staging</code> and mine are <code>dbt_sam_staging</code>, from identical code. Production uses the production schema and gets <code>analytics_staging</code>. Nobody overwrites anybody, and no model contains the word "dev".</p>
+        <p>Two consequences worth knowing before they surprise you:</p>
+        <ul>
+          <li><strong>The intermediate <code>+schema</code> is never used.</strong> It sits in the config next to <code>ephemeral</code>, and no schema is ever created, because nothing is ever materialized. Harmless, and a good question to ask in an interview.</li>
+          <li><strong>Renaming a schema config renames objects.</strong> Anything outside dbt that points at the old name breaks on the next build. That is the blast-radius problem b4 makes visible and b9's contracts try to contain.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>vars: the dates no model is allowed to hard-code<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Four variables live in this project's <code>vars:</code> block, and they exist because of a specific failure mode. The business questions this warehouse answers compare "the last fortnight" with "the fortnight before". Written the obvious way, <code>'2026-06-16'</code> appears in a mart, then in a second mart, then in an analyst's ad hoc query, then in a dashboard filter - and six weeks later three of the four have been updated.</p>
+        <ul>
+          <li><code>recent_window_start: "2026-06-16"</code> and <code>prior_window_start: "2026-06-02"</code> - the two fortnights, defined once. A model reads them as <code>{{ var('recent_window_start') }}</code>.</li>
+          <li><code>incident_day: "2026-06-10"</code> - the day the merchant drop began, so the incident analysis and the marts agree about which day is being discussed.</li>
+          <li><code>small_sample_floor: 30</code> - the row count below which a rate is not worth reporting. A threshold is a business decision, and business decisions belong in config rather than buried in a <code>HAVING</code> clause.</li>
+        </ul>
+        <p>Vars can also be overridden per invocation: <code>dbt build --vars '{"recent_window_start": "2026-05-01"}'</code>. That is how you re-run last month's numbers without editing a model, and it is a much better answer than a copy of the mart with a different date in it.</p>
+        <p>The honest limit: vars are project-wide and untyped, so they are excellent for a handful of windows and thresholds and a poor substitute for a real configuration table when there are fifty. If you find yourself with fifty, the answer is a seed or a source, not a longer vars block.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>See the config in the database <span class="tag demo">★ 13 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">Config is only interesting because it changes what exists in the warehouse. These editors run <strong>real DuckDB</strong> in your browser with this project already built, so every claim in Part 2 is checkable rather than assertable. The first Run downloads the engine (about 8 MB, once), then everything is local.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Read the layer block back out of the database.</strong> Two schemas, two materializations, exactly as declared - and no third schema for intermediate.</p></div>
+      <div class="step"><p><strong>Prove ephemeral means nothing lands.</strong> Not a table, not a view, not a schema. Three models with no footprint at all.</p></div>
+      <div class="step"><p><strong>Then change the raw data underneath both layers</strong> and watch the view move while the table does not. That difference is the entire view-versus-table decision, in one query.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Two schemas, two materializations, 8 and 12. The dbt_project.yml layer block, read back out of the warehouse.">
+      <pre class="sql-src">SELECT table_schema AS schema_name,
+       table_type,
+       count(*)     AS objects,
+       CASE table_schema
+            WHEN 'main_staging' THEN 'staging: +materialized: view'
+            WHEN 'main_marts'   THEN 'marts: +materialized: table'
+       END          AS declared_in_dbt_project_yml
+FROM information_schema.tables
+WHERE table_schema IN ('main_staging', 'main_marts')
+GROUP BY 1, 2
+ORDER BY 1;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Zero. The intermediate layer has +schema: intermediate in the config and no footprint in the database, because ephemeral models are inlined.">
+      <pre class="sql-src">SELECT count(*) AS objects_in_an_intermediate_schema
+FROM information_schema.tables
+WHERE table_schema LIKE '%intermediate%'
+   OR table_name   LIKE 'int_%';</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="1,435 against 1,434. The view already sees the new order line; the mart table will not until dbt rebuilds it.">
+      <pre class="sql-src">INSERT INTO raw.orders      VALUES (900001, 1, 1, '2026-06-29 20:00:00', 'paid', 'SG', 'SGD');
+INSERT INTO raw.order_items VALUES (900001, 1, 1, 'M01', 1, 100.00, 0.00);
+
+SELECT 'main_staging.stg_bazaar__order_items  (view)'  AS relation,
+       (SELECT count(*) FROM main_staging.stg_bazaar__order_items) AS line_rows,
+       'a view is a stored query - the new line is already there'  AS what_the_config_bought
+UNION ALL
+SELECT 'main_marts.fct_order_items  (table)',
+       (SELECT count(*) FROM main_marts.fct_order_items),
+       'a table is a stored result - stale until the next dbt run';</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>That two-row result is the whole trade, and it is why the argument is never "which materialization is better".</strong> The view is always right and pays for it on every read. The table is fast and pays for it in staleness, which is a scheduling problem you have now created for somebody else. Teams that get this wrong usually get it wrong in one direction: they materialize staging as tables because a dashboard was slow, and six months later have a warehouse where nothing is fresh, the build takes an hour, and the actual fix was a table at the mart layer with an index on the column the dashboard filtered.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: vars, and when incremental earns its keep <span class="tag demo">★ 8 min · build your own</span></h2>
+    </div>
+    <p class="lede">Two questions you can answer from the built project, and one you can only answer about your own.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · What the vars actually resolve to<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The browser cannot render Jinja, so the two dates below are written as literals - exactly what <code>{{ var('recent_window_start') }}</code> compiles to. The point is that they partition the tail of a 90-day dataset cleanly, and that they are the same two dates every model uses.</p>
+        <div class="sqlbox" data-setup="built" data-caption="87 rows in the recent fortnight, 105 in the prior one, over a merchant-day mart spanning 2026-04-01 to 2026-06-29.">
+          <pre class="sql-src">SELECT '2026-06-16' AS recent_window_start,
+       '2026-06-02' AS prior_window_start,
+       count(*) FILTER (WHERE activity_date >= '2026-06-16')  AS recent_rows,
+       count(*) FILTER (WHERE activity_date >= '2026-06-02'
+                          AND activity_date <  '2026-06-16')  AS prior_rows,
+       min(activity_date) AS first_day,
+       max(activity_date) AS last_day
+FROM main_marts.mart_merchant_daily;</pre>
+        </div>
+        <p>Change one of those literals and the row counts move together, which is the property you want. In a project where the date is written in four models, changing one of them moves one number and produces an argument.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Would incremental help this project?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <div class="sqlbox" data-setup="built" data-caption="The biggest mart is 2,229 rows. A full rebuild of all 12 takes part of a 1.22 second build - so incremental would add state to reason about and buy nothing.">
+          <pre class="sql-src">SELECT 'main_marts.fct_carts'           AS relation, count(*) AS row_count FROM main_marts.fct_carts
+UNION ALL SELECT 'main_marts.fct_order_items',   count(*) FROM main_marts.fct_order_items
+UNION ALL SELECT 'main_marts.fct_transactions',  count(*) FROM main_marts.fct_transactions
+UNION ALL SELECT 'main_marts.mart_merchant_daily', count(*) FROM main_marts.mart_merchant_daily
+UNION ALL SELECT 'main_marts.mart_funnel_daily',   count(*) FROM main_marts.mart_funnel_daily
+ORDER BY row_count DESC;</pre>
+        </div>
+        <p>This is the honest test for incremental, and it is a measurement rather than a preference. Rebuild cost you can feel, on a table where new rows genuinely arrive by append, is a yes. Anything else is complexity you will be maintaining at 2am when the <code>unique_key</code> turns out not to be unique.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Write the config for your own project<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. Take the transformation estate you actually have and answer five questions on paper:</p>
+        <ul>
+          <li><strong>What are your layers?</strong> If you cannot name them, that is the finding. Most estates have staging and marts under different names plus a large middle nobody has classified.</li>
+          <li><strong>What materialization would each layer get, and what does that cost?</strong> Views cost read time, tables cost storage and freshness, ephemeral costs debuggability.</li>
+          <li><strong>Where would objects land, per environment?</strong> If dev and prod would need different code, you have found the thing profiles and targets exist to remove.</li>
+          <li><strong>Which dates and thresholds are currently hard-coded in more than one place?</strong> Those are your vars, and the count is usually higher than expected.</li>
+          <li><strong>What is genuinely expensive enough to be incremental?</strong> Be strict. The answer is often nothing, and "nothing" is a good answer.</li>
+        </ul>
+        <p>One more honest note on scope, since config is where people expect it to appear: nothing in either file schedules anything. dbt has no opinion about when it runs, and a table materialization is exactly as fresh as your orchestrator makes it. That is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>, and getting the data into <code>raw</code> in the first place is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a>.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>Open this project's <code>dbt_project.yml</code> and change <code>staging</code> to <code>+materialized: table</code>. Run <code>dbt build</code> and read the output: same numbers, different objects, slower build. Then change it back and notice you did not touch a single model.</li>
+      <li>Add a second target to <code>profiles.yml</code> called <code>prod</code> pointing at a different DuckDB file, then run <code>dbt build --target prod</code>. You now have two warehouses from one repository, which is the whole idea.</li>
+      <li>Override a var at the command line: <code>dbt build --select mart_merchant_daily --vars '{"recent_window_start": "2026-05-01"}'</code>. Confirm the numbers move without a code change.</li>
+      <li>Grep your own project for hard-coded dates and thresholds. Every hit is a candidate var, and every duplicate hit is a future disagreement between two dashboards.</li>
+      <li>Write down, in one sentence each, your project's materialization policy per layer. If you cannot, that is the most valuable thing this session has told you, and b3 is where the discipline starts.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - project configuration, <code>profiles.yml</code>, targets, threads, vars</span><span class="note">Part 1 · both files of this project, line by line</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - models and materializations (view, table, ephemeral, incremental)</span><span class="note">Part 2 + Demo 1 · declared per layer, verified in the database</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The community layering convention - materialization as a per-layer promise</span><span class="note">Part 2 · policy in the project file, exceptions in the model</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Incremental models at scale - <code>unique_key</code>, <code>is_incremental()</code>, late-arriving rows</span><span class="note">Named with the trade-off stated · 1,434 rows is not a reason to use it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - why marts are the layer worth materializing</span><span class="note">Touched only · the model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Scheduling and extraction</span><span class="note">Out of scope by design · scheduling is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>, extraction is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Why is the connection resolved from <code>profiles.yml</code> rather than declared in <code>dbt_project.yml</code>?</p>
+      <button class="qopt" type="button">A · Historical accident - dbt used to have one file</button>
+      <button class="qopt" type="button">B · So that each model can pick its own warehouse</button>
+      <button class="qopt" type="button">C · So credentials stay out of version control, and the same project runs against dev, CI or prod by switching target rather than editing code</button>
+      <p class="qwhy">The project file says what gets built; the profile says where it lands and with what credentials. That seam is why a code review is about the model, why a new joiner gets their own sandbox from the same repo, and why a secret never ends up in every clone and CI log.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · Staging is <code>view</code> and marts are <code>table</code> in this project. What is the actual difference you can observe?</p>
+      <button class="qopt" type="button">A · Insert a row into raw and the staging view shows it immediately, while the mart table stays as it was until dbt rebuilds it</button>
+      <button class="qopt" type="button">B · Views validate their data and tables do not</button>
+      <button class="qopt" type="button">C · Views run their tests on every read</button>
+      <p class="qwhy">A view is a stored query, so it is always fresh and pays the cost on every read. A table is a stored result, so it is fast and exactly as fresh as your last build. Demo 1 proves it: 1,435 rows in the view against 1,434 in the table.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · When is <code>incremental</code> the right materialization?</p>
+      <button class="qopt" type="button">A · For any model whose table is bigger than a few thousand rows</button>
+      <button class="qopt" type="button">B · Only when a full rebuild genuinely hurts - because it adds state, a unique key, an is_incremental branch and a full-refresh escape hatch to maintain</button>
+      <button class="qopt" type="button">C · For every mart, since rebuilding data that has not changed is always waste</button>
+      <p class="qwhy">Incremental trades simplicity for compute. This project's biggest table is 2,229 rows and the whole build takes 1.22 seconds, so incremental here would be pure cost. Measure the rebuild before you take on the state.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 2 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>dbt_project.yml</b><span>What gets built and how. Committed to git, reviewed in pull requests.</span></div>
+      <div class="cheat-item"><b>profiles.yml</b><span>Where it lands and with what credentials. Lives in ~/.dbt/, never in the repo.</span></div>
+      <div class="cheat-item"><b>profile:</b><span>A pointer by name, not a connection. Mismatched names are the classic day-one error.</span></div>
+      <div class="cheat-item"><b>view</b><span>Staging. Cheap, always fresh, no storage - and pays on every read.</span></div>
+      <div class="cheat-item"><b>table</b><span>Marts. Built once, queried all day - and only as fresh as your last run.</span></div>
+      <div class="cheat-item"><b>ephemeral</b><span>Intermediate. Inlined as a CTE, nothing lands, nothing to misuse or keep fresh.</span></div>
+      <div class="cheat-item"><b>incremental</b><span>Only when a full rebuild hurts. Costs state, a unique key and a full-refresh path.</span></div>
+      <div class="cheat-item"><b>+schema and vars</b><span>main_staging and main_marts by suffix; windows defined once. Next: b3, sources.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 2 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b1-hand-written-to-project.html">← Previous: From hand-written SQL to a project</a> &nbsp;·&nbsp; <a href="b3-sources-and-staging.html">Next: Sources and staging →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

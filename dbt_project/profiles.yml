@@ -1,0 +1,10 @@
+# profiles.yml - kept inside the project on purpose so the course runs with one command.
+# In production this lives in ~/.dbt/ and holds no secrets in version control.
+bazaar:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../bazaar.duckdb
+      threads: 4
+      extensions: []

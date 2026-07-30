@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 6 · Dimensions, facts, snapshots - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 6 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 6 of 10</div>
+    <h1>Dimensions, facts, <span class="accent">snapshots</span></h1>
+    <p class="sub">Twelve mart models: six dimensions, three facts and three aggregates. The dimensional design is not this course's - it comes from learn-data-modeling, and it was already correct. What changes when you rebuild it in dbt is the mechanics: keys that survive being rebuilt from scratch, a hash macro written out so there is no magic in it, LEFT JOINs that refuse to drop a fact row, and then the part a hand-written warehouse genuinely could not do - a snapshot that maintains type-2 history for you instead of just having a place to put it.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-17 · Keys, dimensions and the joins that protect facts</span>
+      <span class="a3" style="flex:5">17-41 · Build-along, then snapshots as the real payoff</span>
+      <span class="a4" style="flex:1">41-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>What is actually new here</h2>
+    </div>
+    <p class="lede">Be clear about the split before you start, because it saves you from thinking dbt taught you dimensional modeling. Grain, conformed dimensions, additivity, degenerate dimensions, SCD types: all of that belongs to <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>, and this session assumes you already have it. What is new is the engineering underneath a model that <strong>gets rebuilt from scratch on every run</strong>.</p>
+    <p class="lede">That single fact drives most of today's session. A warehouse that is rebuilt cannot use a database sequence for its keys. It cannot rely on an UPDATE to close a dimension row, because the row will be dropped and recreated. It cannot let an inner join quietly reduce a fact table, because nobody will notice a fact table that came back smaller. dbt has an answer for each, and for the third one - history - the answer is a first-class object called a snapshot, which is where this session ends up.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A surrogate-key macro you could write from memory and defend in review, the coalesce-to-unknown discipline measured at a 0.0% unknown rate, an inner join demonstrated silently eating fact rows, and a working understanding of <code>strategy: check</code> snapshots - including the honest boundary between designing SCD2 and maintaining it.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: KEYS AND DIMENSIONS ============ -->
+  <section class="section" id="keys">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on macros, plus Kimball &amp; Ross patterns being implemented</span>
+      <h2>Keys that survive a rebuild <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">Every dimension in this project has a surrogate key, and every one of them is a 32-character hash of the business key. Not a sequence, not an identity column, not <code>row_number()</code>. Understanding why is the fastest route to understanding what is different about a warehouse built by a tool that rebuilds everything.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A database sequence hands out different numbers every rebuild, while a hash of the business key is identical every run; and the macro written out in full">
+        <style>
+          .kT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .kC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .kB { font: 700 11.5px Inter, sans-serif; fill: #991B1B; }
+          .kG { font: 700 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .kHd { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .kM { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .kN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="406" height="36" rx="8" fill="#2B2B33"/>
+        <text class="kT" x="44" y="52">A database sequence: wrong here</text>
+        <rect x="26" y="72" width="406" height="136" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="kC" x="44" y="98">Monday build      M07 gets 7, M12 gets 12</text>
+        <text class="kC" x="44" y="118">Tuesday build     M07 gets 3, M12 gets 5</text>
+        <text class="kB" x="44" y="144">Yesterday's fact rows now point at the wrong merchant.</text>
+        <text class="kC" x="44" y="168">dbt drops and recreates every mart, so the sequence</text>
+        <text class="kC" x="44" y="188">restarts and hands out different numbers every run.</text>
+
+        <rect x="448" y="28" width="406" height="36" rx="8" fill="#D94E24"/>
+        <text class="kT" x="466" y="52">A hash of the business key: right</text>
+        <rect x="448" y="72" width="406" height="136" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="kC" x="466" y="98">Monday build      M07 to the same 32-char hash</text>
+        <text class="kC" x="466" y="118">Tuesday build     M07 to the same 32-char hash</text>
+        <text class="kG" x="466" y="144">Deterministic: no state to keep, nothing to coordinate.</text>
+        <text class="kC" x="466" y="168">This is what dbt_utils.generate_surrogate_key does.</text>
+        <text class="kC" x="466" y="188">macros/surrogate_key.sql writes it out, so no magic.</text>
+
+        <rect x="26" y="228" width="828" height="112" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="kHd" x="46" y="254">The macro, in full - eleven lines of Jinja and one function call</text>
+        <text class="kM" x="46" y="280">md5(concat_ws('|', coalesce(cast(field as varchar), '_null_'), ... ))</text>
+        <text class="kN" x="46" y="306">concat_ws with a separator, so 'AB' plus 'C' can never collide with 'A' plus 'BC'. And coalesce,</text>
+        <text class="kN" x="46" y="328">so a null business key still produces a key rather than a null that joins to nothing.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - why the key is a hash, and what the hash has to get right</figcaption>
+    </figure>
+
+    <p>The six dimensions, and what each one is doing. Note that two of them are generated rather than sourced, and one of them is only the current slice of something larger:</p>
+
+    <table class="clean">
+      <thead><tr><th>Dimension</th><th>Rows</th><th>Type</th><th>Key strategy</th><th>What it is for</th></tr></thead>
+      <tbody>
+        <tr><td><code>dim_dates</code></td><td>214</td><td>generated, never sourced</td><td><code>md5(date_day)</code></td><td>Every calendar attribute anyone will group by, built wider than the data so a future date already exists.</td></tr>
+        <tr><td><code>dim_time_of_day</code></td><td>24</td><td>generated, never sourced</td><td><code>hour_24</code>, a natural integer key</td><td>Peak-hour and staffing questions, kept out of <code>dim_dates</code> so the calendar is not multiplied by 24.</td></tr>
+        <tr><td><code>dim_users</code></td><td>60</td><td>type 1 - overwritten in place</td><td><code>md5(user_id)</code></td><td>Shopper attributes plus a banded <code>tenure_bucket</code>, so no dashboard writes its own CASE.</td></tr>
+        <tr><td><code>dim_merchants</code></td><td>12</td><td>type 2 structure, current-version view</td><td><code>md5(merchant_id)</code></td><td>The seller, as it is today. The history lives in <code>merchants_snapshot</code>, which is Part 2.</td></tr>
+        <tr><td><code>dim_products</code></td><td>60</td><td>type 1, flat and wide</td><td><code>md5(product_id)</code></td><td>Product attributes plus <code>merchant_name</code> carried along, so analysts and agents lose a join.</td></tr>
+        <tr><td><code>dim_payment_methods</code></td><td>6</td><td>type 1, mapped</td><td><code>md5(payment_method)</code></td><td>Raw source strings such as <code>card_visa</code> turned into the grouping people actually say.</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why a sequence is wrong, in one paragraph you can repeat in review<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>In a hand-loaded warehouse, a sequence is a perfectly reasonable surrogate key: the dimension row is inserted once, gets number 7, and keeps it forever because nothing ever drops the table. dbt does not work that way. <code>materialized: table</code> means <em>drop and recreate in full, every run</em>. So on Monday the sequence hands merchant M07 the number 7, on Tuesday the rows come back in a slightly different order and M07 gets 3 - and every fact row built before Tuesday now points at whichever merchant happens to hold 7 today. Nothing errors. The join still succeeds. The numbers are just attached to the wrong names.</p>
+        <p>Hashing the business key removes the problem rather than managing it. The key is a pure function of the input, so:</p>
+        <ul>
+          <li><strong>It is identical on every run</strong>, which is what makes rebuilding the whole warehouse a safe operation instead of a coordinated migration.</li>
+          <li><strong>It is identical on every machine.</strong> Your dev target and production compute the same key from the same business key, so you can compare a dev fact table to a production one directly.</li>
+          <li><strong>It needs no state.</strong> There is no counter to protect, no gap to explain, and nothing that breaks when two threads build two models at once - which matters, because dbt runs four threads by default.</li>
+          <li><strong>It composes.</strong> <code>fct_order_items</code> keys on <code>order_id</code> plus <code>line_no</code> together, and the same macro handles it because it takes a list.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The cost, stated honestly</strong>
+          A 32-character string key is wider than an integer and does not compress or join as cheaply. On a large warehouse that is a real bill, and this is exactly where vendor-specific tuning starts - which is out of scope here on purpose, because the project runs on DuckDB so nothing depends on one optimiser. The determinism is worth the width until you can measure that it is not.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Flat and wide, not snowflaked - and the unknown member<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Two disciplines run through all six dimensions, and both of them are about the person writing the query rather than the person writing the model.</p>
+        <p><strong>Flat and wide.</strong> <code>dim_products</code> carries <code>merchant_name</code> even though <code>dim_merchants</code> already has it. A normaliser would call that a duplicate; a dimensional modeller calls it one less join in every product question anybody ever asks - and one less join in every query an AI agent writes against your warehouse, which is a newer and increasingly load-bearing reason. Snowflaking saves storage that costs nothing and spends clarity that costs a great deal. The same instinct puts <code>tenure_bucket</code> in <code>dim_users</code> and <code>daypart</code> in <code>dim_time_of_day</code>: band it once in the model so eleven dashboards do not each write their own CASE and disagree at the boundaries.</p>
+        <p><strong>Coalesce to the unknown member.</strong> Every dimension lookup in every fact is a <code>LEFT JOIN</code> followed by <code>coalesce(dim.the_sk, '-1')</code>. Read <code>fct_order_items</code> and you will see it four times. The reason is the failure mode you are choosing between:</p>
+        <ul>
+          <li>An <strong>inner join</strong> drops any fact row whose dimension is missing. Revenue silently disappears, the build stays green, and nobody notices until a reconciliation months later. This is the worst failure mode in the whole project, because the evidence of the problem is the thing that got deleted.</li>
+          <li>A <strong>left join with no coalesce</strong> leaves a null key. Better - the row survives - but now every downstream aggregation has to remember to handle nulls, and half of them will not.</li>
+          <li>A <strong>left join coalesced to <code>'-1'</code></strong> keeps the row, keeps the money in the total, and makes the problem countable: <code>select count(*) where merchant_sk = '-1'</code>. A broken lookup becomes a number on a dashboard instead of an absence.</li>
+        </ul>
+        <p>Then you test it. <code>assert_no_fact_rows_lost_to_unknown_members</code> is a singular test that fails the build if the unknown share of <code>fct_order_items</code> climbs above 1%. It currently reports <strong>0.0%</strong>, and you will run that measurement in a minute.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Three facts at three grains, and the two dimensions you generate<span class="mini">4 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>The facts.</strong> Three of them, and the grain is declared in the first line of every file because it is the only thing about a fact table you cannot recover by reading the columns:</p>
+        <ul>
+          <li><code>fct_order_items</code> - one row per product line on one order. 1,434 rows. The revenue fact, and where <code>net_amount</code> lives.</li>
+          <li><code>fct_transactions</code> - one row per payment attempt. 1,060 rows. An order appears several times here: a decline, a retry that succeeds, a refund later.</li>
+          <li><code>fct_carts</code> - one row per cart. 2,229 rows. Demand that never became revenue, which is what lets you tell "sales fell" apart from "people stopped wanting to buy".</li>
+        </ul>
+        <p>Three grains means three tables. It does not mean three tables that can be joined together, which is session b5's fan-out guard and the reason <code>int_payments_per_order</code> exists. Notice also that the three day-grain marts join <em>pre-aggregated sets</em> rather than facts to facts.</p>
+        <p><strong>The generated dimensions.</strong> <code>dim_dates</code> and <code>dim_time_of_day</code> have no source and no <code>ref()</code> at all. They are built from DuckDB's <code>range()</code>:</p>
+        <ul>
+          <li><code>dim_dates</code> walks <code>range(date '2026-03-01', date '2026-10-01', interval 1 day)</code> and produces 214 rows, deliberately wider than the 90 days of data. A calendar dimension that stops where the data stops guarantees a broken lookup the first day new data arrives, and a fact row falling to the unknown member on a date that plainly exists is a maddening bug to chase.</li>
+          <li><code>dim_time_of_day</code> walks <code>range(0, 24)</code> and produces 24 rows. It is separate from <code>dim_dates</code> on purpose: folding hours into the calendar would multiply it by 24 for no benefit, and "what are our peak hours" needs to group across all 90 days at once.</li>
+        </ul>
+        <p>Never source a calendar from an application database. It will be incomplete, it will have somebody's fiscal calendar baked into it, and it will change without telling you. Generating it means it is correct by construction and reviewable in a diff.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: SNAPSHOTS ============ -->
+  <section class="section" id="snapshots">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers dbt documentation on snapshots</span>
+      <h2>Snapshots: the thing a hand-written load could not do <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">Merchant tiers change. Commission rates get renegotiated. A sale made in April earned April's commission, and if the merchant is promoted in June, restating April at June's rate is not a rounding difference - it is a wrong number in a payout report. That is the type-2 problem, and it is the one place in this whole course where dbt does not just manage the same SQL more safely but genuinely does something the hand-written version could not.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 482" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How a check-strategy snapshot closes the old version and opens a new one on each run, contrasted with a hand-written SCD2 structure that nothing maintains">
+        <style>
+          .sT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .sP { font: 700 11.5px Inter, sans-serif; fill: #FFFFFF; }
+          .sC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .sM { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .sB { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .sG { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+          .sN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="828" height="34" rx="8" fill="#2B2B33"/>
+        <text class="sT" x="44" y="48">merchants_snapshot · strategy: check · check_cols: merchant_tier, commission_pct, merchant_name</text>
+
+        <rect x="26" y="76" width="828" height="64" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <rect x="42" y="90" width="110" height="26" rx="6" fill="#D94E24"/>
+        <text class="sP" x="56" y="108">run 1 · today</text>
+        <text class="sM" x="176" y="102">M03  silver  0.10   dbt_valid_from 2026-07-30   dbt_valid_to NULL</text>
+        <text class="sC" x="176" y="128">One row per merchant. A NULL valid_to means this is the version in force right now.</text>
+
+        <rect x="26" y="156" width="828" height="112" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <rect x="42" y="170" width="110" height="26" rx="6" fill="#3F7F72"/>
+        <text class="sP" x="56" y="188">run 2 · later</text>
+        <text class="sC" x="176" y="182">Say M03 is promoted to gold. check_cols sees merchant_tier change, so dbt closes and opens:</text>
+        <text class="sM" x="176" y="210">M03  silver  0.10   dbt_valid_from 2026-07-30   dbt_valid_to 2026-08-14</text>
+        <text class="sM" x="176" y="232">M03  gold    0.13   dbt_valid_from 2026-08-14   dbt_valid_to NULL</text>
+        <text class="sC" x="176" y="256">Nothing was overwritten. April's fact rows can still find April's commission rate.</text>
+
+        <rect x="26" y="284" width="406" height="104" rx="9" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="sB" x="44" y="310">By hand</text>
+        <text class="sC" x="44" y="332">dim_merchants ships valid_from, valid_to and</text>
+        <text class="sC" x="44" y="352">is_current - the SCD2 structure, correctly designed.</text>
+        <text class="sC" x="44" y="372">Nothing maintains it. Every row is version 1 forever.</text>
+
+        <rect x="448" y="284" width="406" height="104" rx="9" fill="#E8F3F0" stroke="#E6E4E9"/>
+        <text class="sG" x="466" y="310">With dbt</text>
+        <text class="sC" x="466" y="332">One snapshot file. Every run compares, then closes</text>
+        <text class="sC" x="466" y="352">the old version and opens a new one. dbt_valid_from</text>
+        <text class="sC" x="466" y="372">and dbt_valid_to are maintained for you, by the tool.</text>
+
+        <rect x="26" y="406" width="828" height="56" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="sN" x="46" y="430">dim_merchants answers "what is true now". The snapshot answers "what was true then". Join facts</text>
+        <text class="sN" x="46" y="452">to the snapshot only when the question is historical - restating a closed month, auditing a rate.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - each run closes a version instead of overwriting it</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The snapshot file, read line by line<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>snapshots/merchants_snapshot.sql</code> is a SELECT wrapped in two Jinja tags and a config block. That is the entire artifact. The whole of type-2 maintenance is in four config values:</p>
+        <ul>
+          <li><strong><code>unique_key='merchant_id'</code></strong> - the business key. This is how dbt decides that an incoming row and a stored row are the same merchant. Get this wrong and you get duplicate history instead of versioned history.</li>
+          <li><strong><code>strategy='check'</code></strong> - compare the current values of named columns against what is stored. The alternative is <code>strategy: timestamp</code>, which trusts an <code>updated_at</code> column from the source. Timestamp is cheaper and better <em>when the source is trustworthy</em>; check is what you use when it is not, which in practice is most of the time.</li>
+          <li><strong><code>check_cols=['merchant_tier', 'commission_pct', 'merchant_name']</code></strong> - the columns whose change opens a new version. This is a modeling decision, not a technicality: anything not in this list is treated as type 1 and simply overwritten. Merchant country is not in the list, so a country correction rewrites history rather than versioning it - which is the right call for a data fix and the wrong call for a genuine relocation. You are choosing, whether you notice or not.</li>
+          <li><strong><code>target_schema='snapshots'</code></strong> - snapshots live in their own schema, away from the marts, because they are not something a dashboard should query casually.</li>
+        </ul>
+        <p>Then <code>dbt snapshot</code> runs, and on every subsequent run dbt compares the incoming rows to the stored ones. A changed <code>check_cols</code> value means: set <code>dbt_valid_to</code> on the stored row to now, and insert a new row with <code>dbt_valid_from</code> set to now and <code>dbt_valid_to</code> null. It also maintains <code>dbt_scd_id</code>, a hash identifying the version, and <code>dbt_updated_at</code>. Four columns you never write.</p>
+        <div class="callout tip">
+          <strong>The one rule about snapshots that matters more than all the others</strong>
+          A snapshot is the only <strong>stateful</strong> object dbt builds. Every model can be dropped and rebuilt from source; a snapshot cannot, because the history it holds no longer exists anywhere else. Never <code>--full-refresh</code> a snapshot, back the schema up like production data, and run <code>dbt snapshot</code> on a schedule that is at least as frequent as the changes you care about. History you did not capture is history you do not have.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Two objects, two questions: dim_merchants versus the snapshot<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This project deliberately ships both, and the split is worth copying:</p>
+        <ul>
+          <li><strong><code>dim_merchants</code> is the current-version view.</strong> Twelve rows, one per merchant, always the version in force, and it carries <code>valid_from</code>, <code>valid_to</code> and <code>is_current</code> so the shape is honest about being a slice of something with history. Every fact in the project joins here, with <code>and dim_merchants.is_current</code> on the join so the pattern still works when history arrives. The mart layer stays readable: twelve rows, no date-range logic in any analyst's query.</li>
+          <li><strong><code>merchants_snapshot</code> is the history.</strong> It grows a row every time a tier or a rate changes and never loses one. It lives in its own schema and nobody queries it by accident.</li>
+        </ul>
+        <p>So when do you join a fact to the snapshot instead of the dimension? The test is whether the question is <em>as-of</em> or <em>as-is</em>:</p>
+        <ul>
+          <li><strong>Join the dimension</strong> for almost everything. "Revenue by merchant tier this quarter" means today's tiers, because the business asking is thinking about today's portfolio. This is the default and it should stay the default.</li>
+          <li><strong>Join the snapshot</strong> when the answer must match what was true at the time: a commission payout being recalculated for a closed month, an audit of what rate was in force on a date, a cohort analysis where the attribute is the cohort. The join carries a date predicate - <code>ordered_at</code> between <code>dbt_valid_from</code> and <code>coalesce(dbt_valid_to, now())</code> - and returns exactly one version per fact row.</li>
+        </ul>
+        <p>The trap worth naming: a dashboard that silently switches between the two produces two different answers to the same question and no way to tell which one you are looking at. Pick one per report, and put it in the title.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The honest boundary, and what snapshots still cannot do<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The hand-written version of this warehouse designed SCD2 properly. Its <code>dim_merchants</code> had <code>valid_from</code>, <code>valid_to</code> and <code>is_current</code>, the grain was right, and the documentation explained the pattern. What it did not have was anything that <em>ran</em>. Maintaining type-2 history by hand means a load that reads the current dimension, diffs it against the incoming rows, UPDATEs the expiring versions and INSERTs the new ones, in a transaction, idempotently, with a plan for the run that fails halfway. That is a genuinely difficult piece of software, and it is why hand-built warehouses so often ship the columns and never fill them. Every row stays version 1 forever and the structure becomes decoration.</p>
+        <p>dbt reduces that to a file with four config values. That is the single largest capability gap between the two versions of this warehouse, and it is worth being precise about it: everywhere else in this course dbt manages the same SQL more safely. Here it does something else.</p>
+        <p>What snapshots still will not do for you:</p>
+        <ul>
+          <li><strong>They cannot recover history from before the first run.</strong> The snapshot starts the day you start it. If tiers changed last year, that is gone unless the source kept it.</li>
+          <li><strong>They only see what the source shows them.</strong> With <code>strategy: check</code>, two changes between runs look like one change. A snapshot run daily against an attribute that changes hourly records a daily approximation, and nothing warns you.</li>
+          <li><strong>Deletes are invisible by default.</strong> A merchant that disappears from the source keeps its open version forever unless you configure <code>hard_deletes</code> to track it.</li>
+          <li><strong>They do not decide what deserves history.</strong> <code>check_cols</code> is a business judgement about which attributes carry meaning over time. Nothing in dbt can make that call, and putting every column in the list produces a new version every time somebody fixes a typo.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Query the star dbt built <span class="tag demo">★ 12 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">Real DuckDB, this project already built from dbt's own compiled SQL. Four measurements: the key is really a hash, the unknown member is really empty, the generated dimensions are really wider than the data, and the three facts are really at three grains. One honest note before you start: <strong>snapshots are not in the browser database.</strong> A snapshot needs <code>dbt snapshot</code> to run, which needs Python, which the browser does not have - so Part 2 is taught from the real file and Demo 2 shows you the dimension side of it. There is no query here against a table that does not exist.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Recompute a key by hand.</strong> The macro is <code>md5(concat_ws(...))</code> and nothing else, so you can reproduce it in the query and compare.</p></div>
+      <div class="step"><p><strong>Count the unknown members.</strong> Four dimension lookups per fact row, all coalesced to <code>'-1'</code>. If the load is healthy, all four counts are zero.</p></div>
+      <div class="step"><p><strong>Check the calendar goes further than the data.</strong> 214 generated days against 90 days with sales.</p></div>
+      <div class="step"><p><strong>Read the three grains off the row counts.</strong> Then remember that this is exactly why they cannot be joined.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="The surrogate key recomputed by hand from the business key, and matched against what dim_merchants stores. Identical every run, on any machine, with no state to keep.">
+      <pre class="sql-src">SELECT merchant_id,
+       merchant_name,
+       merchant_sk,
+       md5(concat_ws('|', coalesce(cast(merchant_id AS varchar), '_null_'))) AS recomputed_by_hand,
+       merchant_sk = md5(concat_ws('|', coalesce(cast(merchant_id AS varchar), '_null_'))) AS matches
+FROM main_marts.dim_merchants
+ORDER BY merchant_id
+LIMIT 6;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="1,434 fact rows, and zero of them fell to the unknown member on any of the four dimension lookups. An unknown-member rate of 0.0% - and the singular test fails the build if it ever passes 1%.">
+      <pre class="sql-src">SELECT count(*)                                            AS fact_rows,
+       sum(CASE WHEN date_key    = '-1' THEN 1 ELSE 0 END)  AS unknown_date,
+       sum(CASE WHEN user_sk     = '-1' THEN 1 ELSE 0 END)  AS unknown_user,
+       sum(CASE WHEN merchant_sk = '-1' THEN 1 ELSE 0 END)  AS unknown_merchant,
+       sum(CASE WHEN product_sk  = '-1' THEN 1 ELSE 0 END)  AS unknown_product
+FROM main_marts.fct_order_items;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="214 generated days from 2026-03-01 to 2026-09-30, of which 90 have sales. The calendar runs three months past the data on purpose, so tomorrow's fact row already has a date to join to. 24 hour rows alongside it.">
+      <pre class="sql-src">SELECT (SELECT count(*)        FROM main_marts.dim_dates)              AS generated_days,
+       (SELECT min(date_day)    FROM main_marts.dim_dates)              AS calendar_from,
+       (SELECT max(date_day)    FROM main_marts.dim_dates)              AS calendar_to,
+       (SELECT count(DISTINCT date_key) FROM main_marts.fct_order_items) AS days_with_sales,
+       (SELECT count(*)        FROM main_marts.dim_time_of_day)         AS hour_rows;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Three facts, three grains, three row counts: 2,229 carts, 1,434 order lines, 1,060 payment attempts. Three different questions, and three tables that must never be joined to each other.">
+      <pre class="sql-src">SELECT 'fct_order_items' AS fact, 'one product line on one order' AS grain, count(*) AS row_count
+FROM main_marts.fct_order_items
+UNION ALL
+SELECT 'fct_transactions', 'one payment attempt', count(*) FROM main_marts.fct_transactions
+UNION ALL
+SELECT 'fct_carts', 'one cart', count(*) FROM main_marts.fct_carts
+ORDER BY row_count DESC;</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The unknown-member discipline is what makes a data quality problem arrive as a number instead of as a silence.</strong> Every warehouse eventually receives a fact row whose dimension is missing: a product created after the dimension load, a merchant onboarded mid-batch, a date outside the calendar. With inner joins, that row is deleted and the total quietly shrinks, and the only evidence is a reconciliation nobody runs. With a left join coalesced to <code>'-1'</code>, the row survives, the money stays in the total, and the count of unknowns is a metric somebody can put on a dashboard and watch. Same broken load, same day, completely different odds of finding out.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: cost an inner join, then read the SCD2 columns <span class="tag demo">★ 10 min · build your own</span></h2>
+    </div>
+    <p class="lede">The strongest argument for the LEFT JOIN discipline is watching what the alternative costs, on real numbers, in one query.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · What would an inner join have deleted?<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Simulate a broken dimension load by hiding one merchant from <code>dim_merchants</code>, then inner-join the fact to it - which is what almost every hand-written star schema does by default. Compare the row count and revenue with the untouched fact table.</p>
+        <div class="sqlbox" data-setup="built" data-caption="One merchant missing from the dimension, and the inner join deletes every fact row belonging to it - rows and revenue both. No error, no warning, no null. The left-join-plus-coalesce version keeps every row and makes the gap countable instead.">
+          <pre class="sql-src">WITH dim_without_m07 AS (
+    SELECT * FROM main_marts.dim_merchants WHERE merchant_id != 'M07'
+)
+SELECT (SELECT count(*) FROM main_marts.fct_order_items)                 AS fact_rows,
+       count(*)                                                          AS rows_after_inner_join,
+       (SELECT round(sum(net_amount), 2) FROM main_marts.fct_order_items) AS revenue_all_rows,
+       round(sum(f.net_amount), 2)                                       AS revenue_after_inner_join
+FROM main_marts.fct_order_items f
+JOIN dim_without_m07 d ON d.merchant_sk = f.merchant_sk;</pre>
+        </div>
+        <p>Now change <code>JOIN</code> to <code>LEFT JOIN</code> and run it again. The row count returns to 1,434 and the revenue returns to the full total, because the unmatched rows survive with a null key - which in the real model is coalesced to <code>'-1'</code> and counted. That two-word difference is the whole discipline.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Read the SCD2 columns, and notice what is missing<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>dim_merchants</code> carries the full type-2 column set. Look at the values it currently holds and you can see the difference between designing SCD2 and maintaining it, without needing the snapshot table at all.</p>
+        <div class="sqlbox" data-setup="built" data-caption="The SCD2 structure, correctly designed: valid_from, valid_to and is_current. Every row is version 1 - valid_to is 9999-12-31 and is_current is true for all twelve merchants, because this model is the current-version view and nothing here maintains history.">
+          <pre class="sql-src">SELECT merchant_id,
+       merchant_name,
+       merchant_tier,
+       commission_pct,
+       valid_from,
+       valid_to,
+       is_current
+FROM main_marts.dim_merchants
+ORDER BY merchant_id
+LIMIT 6;</pre>
+        </div>
+        <p>Those three columns are the shape of history with no history in them, which is exactly the state a hand-written warehouse tends to stop at. The snapshot is what fills them: run <code>dbt snapshot</code> on the cloned project, change a merchant tier in <code>data/merchants.csv</code>, reload and snapshot again, and <code>snapshots.merchants_snapshot</code> will hold two rows for that merchant with <code>dbt_valid_to</code> set on the first. That is your homework, and it is the most convincing five minutes in the whole project.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Which of your own attributes deserve check_cols?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. This is the judgement call snapshots hand back to you, and getting it wrong is expensive in both directions.</p>
+        <p>Take one dimension in your own warehouse and sort its attributes into three piles:</p>
+        <ul>
+          <li><strong>History matters, and somebody would notice.</strong> Anything that appears in a rate, a payout, a segment definition, a contract, or a regulatory report. Merchant tier and commission rate are here, which is why they are in this project's <code>check_cols</code>. So are pricing bands, credit ratings, account managers, and any status that gates entitlement.</li>
+          <li><strong>History does not matter.</strong> A shopper's city, a display name, a preferred language. Nobody has ever asked for the history of these, so they are type 1 and get overwritten. Putting them in <code>check_cols</code> generates a new version every time somebody fixes a spelling and makes the snapshot useless to read.</li>
+          <li><strong>You genuinely cannot tell.</strong> This is the interesting pile, and the answer is not to guess. Ask whoever owns the process whether a change is a <em>correction</em> or an <em>event</em>. Corrections are type 1: the old value was never true. Events are type 2: the old value was true and stopped being true. Country is the classic ambiguous one - a data fix versus an actual relocation - and the two want opposite treatment from the same column.</li>
+          <li><strong>The one to check yourself on:</strong> anything currently type 1 that somebody has already asked a historical question about, and got an answer from a rebuilt dimension. That answer was wrong, quietly, and nobody knows.</li>
+        </ul>
+        <p>Bring the first pile to b10. Adding a snapshot to a subject area is part of the capstone, and having already decided which attributes deserve one is most of the work.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>Run <code>dbt snapshot</code> on the cloned project, then edit a merchant's tier in <code>data/merchants.csv</code>, reload the raw schema and snapshot again. Query <code>snapshots.merchants_snapshot</code> for that merchant and read <code>dbt_valid_from</code> and <code>dbt_valid_to</code> on both rows. This is the five minutes that makes snapshots click.</li>
+      <li>Open <code>macros/surrogate_key.sql</code> and remove the <code>concat_ws</code> separator, then rebuild. Nothing will fail on this dataset - which is the point. Work out on paper which pair of business keys would now collide, and why the separator is not optional.</li>
+      <li>Find one fact table in your own warehouse whose dimension lookups use inner joins. Rewrite one as a left join with a coalesce to an unknown member and compare the row counts. If the numbers differ, you have been silently losing facts.</li>
+      <li>Check whether your date dimension extends past your data. If it stops at today, you already know what breaks tomorrow.</li>
+      <li>Write down the <code>check_cols</code> list you would use for your most political dimension, and take it to whoever owns that process. The conversation about corrections versus events is worth more than the config line it produces. Bring the list to b10.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - snapshots, <code>strategy: check</code>, <code>check_cols</code>, the <code>dbt_valid_from</code> and <code>dbt_valid_to</code> columns</span><span class="note">Part 2 · taught from this project's real <code>merchants_snapshot.sql</code>, with the stateful-object rule</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - macros, and surrogate keys as a deterministic hash</span><span class="note">Part 1 + Demo 1 · <code>macros/surrogate_key.sql</code> written out, then recomputed by hand in a query</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - dimensional patterns: grain, flat-and-wide dimensions, unknown members, SCD2</span><span class="note">Implemented here, <em>designed</em> in <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a> · that course owns the theory</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Incremental models at scale, and warehouse-specific tuning of wide hash keys</span><span class="note">Named plainly as out of scope · 985 orders is too small to teach it honestly and the interesting parts are vendor-specific</span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Why not use a database sequence for surrogate keys in a dbt project?</p>
+      <button class="qopt" type="button">A · Sequences are slower than hashing</button>
+      <button class="qopt" type="button">B · dbt cannot create sequences</button>
+      <button class="qopt" type="button">C · dbt rebuilds models from scratch, so a sequence hands out different numbers every run and yesterday's facts end up pointing at the wrong dimension rows</button>
+      <p class="qwhy">A hash of the business key is a pure function of its input: identical every run, on every machine, with no state to keep and nothing to coordinate across four threads. That is what <code>dbt_utils.generate_surrogate_key</code> does, and <code>macros/surrogate_key.sql</code> writes it out so there is no magic in it.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · Why does every dimension lookup in these facts use <code>LEFT JOIN</code> plus <code>coalesce(..., '-1')</code>?</p>
+      <button class="qopt" type="button">A · An inner join would silently drop any fact row whose dimension is missing, deleting revenue with no error; the coalesce keeps the row and makes the gap countable</button>
+      <button class="qopt" type="button">B · Left joins are faster on DuckDB</button>
+      <button class="qopt" type="button">C · dbt requires left joins in fact models</button>
+      <p class="qwhy">Silently-missing revenue is the worst failure mode in the project, because the evidence is the thing that got deleted. Coalescing to the unknown member turns it into a metric: this project measures a 0.0% unknown rate, and a singular test fails the build above 1%.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · A merchant's tier changes. With <code>strategy: check</code> and that column in <code>check_cols</code>, what does the next <code>dbt snapshot</code> do?</p>
+      <button class="qopt" type="button">A · Overwrites the stored row with the new tier</button>
+      <button class="qopt" type="button">B · Sets <code>dbt_valid_to</code> on the stored row and inserts a new row with <code>dbt_valid_from</code> set to now and <code>dbt_valid_to</code> null</button>
+      <button class="qopt" type="button">C · Fails the build until somebody approves the change</button>
+      <p class="qwhy">Each run closes the old version rather than overwriting it, which is why a sale made in April keeps reporting April's commission rate. A snapshot is also the only stateful object dbt builds - never <code>--full-refresh</code> it, because the history it holds exists nowhere else.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 6 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>Surrogate keys</b><span>md5 of the business key. Deterministic, no state, works across threads and machines.</span></div>
+      <div class="cheat-item"><b>Not a sequence</b><span>dbt rebuilds from scratch, so a sequence renumbers and old facts point at the wrong rows.</span></div>
+      <div class="cheat-item"><b>Flat and wide</b><span>dim_products carries merchant_name. One less join for every analyst and every agent.</span></div>
+      <div class="cheat-item"><b>Unknown member</b><span>LEFT JOIN plus coalesce to '-1'. Never an inner join. Currently 0.0% unknown.</span></div>
+      <div class="cheat-item"><b>Generated dims</b><span>dim_dates 214 days via range(), dim_time_of_day 24 rows. Never sourced.</span></div>
+      <div class="cheat-item"><b>Three grains</b><span>1,434 order lines · 1,060 payment attempts · 2,229 carts. Never joined to each other.</span></div>
+      <div class="cheat-item"><b>Snapshots</b><span>strategy: check + check_cols. Each run closes the old version, dbt_valid_from/to.</span></div>
+      <div class="cheat-item"><b>Stateful, once</b><span>The only object you cannot rebuild. Never full-refresh it. Next: b7, break a model.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 6 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b5-intermediate-models.html">← Previous: Intermediate models</a> &nbsp;·&nbsp; <a href="b7-break-a-model.html">Next: The break-a-model lab →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

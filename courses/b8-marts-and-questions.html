@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 8 · Marts and the business questions - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 8 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 8 of 10</div>
+    <h1>Marts and the <span class="accent">business questions</span></h1>
+    <p class="sub">A mart is the star, pre-aggregated to the grain a set of questions is actually asked at, with the metric definitions baked in. It is not a smaller copy of the star and it is not a convenience view. This project ships three of them because Bazaar's questions are asked at three different grains, and merging them would force a grain that fits none. Today you read all three, see how the funnel mart avoids the fan-out that inflates revenue from 111,906.48 to 121,003, and answer the four business questions against dbt-built marts - getting the hand-built course's numbers back to the cent.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:3">3-16 · What a mart is, and what it is not</span>
+      <span class="a3" style="flex:6">16-42 · The four questions, against dbt-built marts</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The layer people build for the wrong reason</h2>
+    </div>
+    <p class="lede">Most marts get built because a dashboard was slow. That is a real reason and a bad definition. A mart earns its existence when a set of questions is asked repeatedly <em>at one grain</em>, and the answers need the same numerator, the same denominator and the same filter every time. Speed is a side effect. The point is that "revenue" means one thing, in one place, computed once.</p>
+    <p class="lede">Sessions b6 and b7 built and tested the star: six dimensions, three facts, one snapshot. This session is the last layer, and it is where the modeling discipline either survives or quietly dies - because a mart is the object a business person points at, and every shortcut in it becomes a number in a board pack.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A working definition of a mart that is about grain rather than speed, the reason this project has three marts and not one, the fan-out rule applied one layer above where you learned it, the numerator-and-denominator habit for every ratio you ever ship, and the four business questions answered against dbt-built marts with numbers identical to the hand-built warehouse.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHAT A MART IS ============ -->
+  <section class="section" id="what">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers dbt documentation on materializations, community layering conventions</span>
+      <h2>Three marts, three grains <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">Each mart below exists because a specific group of people asks a specific group of questions at a specific grain. Read the grain first; everything else in the model follows from it.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The three Bazaar marts, their grains, row counts, the questions they answer and their measures, plus why they are not merged into one wide mart">
+        <style>
+          .m8T { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .m8G { font: 700 11.5px Inter, sans-serif; fill: #22222A; }
+          .m8C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .m8H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .m8N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="268" height="42" rx="8" fill="#D94E24"/>
+        <text class="m8T" x="42" y="55">mart_merchant_daily</text>
+        <text class="m8G" x="42" y="94">GRAIN one merchant per day</text>
+        <text class="m8C" x="42" y="116">600 rows - 90 days x 12 merchants</text>
+        <text class="m8C" x="42" y="138">asks: which merchant dropped?</text>
+        <text class="m8C" x="42" y="160">measures: orders, units, gross,</text>
+        <text class="m8C" x="42" y="180">discounts, net, commission, margin</text>
+
+        <rect x="306" y="28" width="268" height="42" rx="8" fill="#2B2B33"/>
+        <text class="m8T" x="322" y="55">mart_funnel_daily</text>
+        <text class="m8G" x="322" y="94">GRAIN one day</text>
+        <text class="m8C" x="322" y="116">90 rows - one per calendar day</text>
+        <text class="m8C" x="322" y="138">asks: why did revenue move?</text>
+        <text class="m8C" x="322" y="160">measures: carts, conversions,</text>
+        <text class="m8C" x="322" y="180">orders, revenue, attempts, declines</text>
+
+        <rect x="586" y="28" width="268" height="42" rx="8" fill="#3F7F72"/>
+        <text class="m8T" x="602" y="55">mart_hourly_transactions</text>
+        <text class="m8G" x="602" y="94">GRAIN one date-hour</text>
+        <text class="m8C" x="602" y="116">753 rows - only hours with money</text>
+        <text class="m8C" x="602" y="138">asks: when does money move?</text>
+        <text class="m8C" x="602" y="160">measures: attempts, approvals,</text>
+        <text class="m8C" x="602" y="180">declines, amounts, orders touched</text>
+
+        <rect x="26" y="212" width="828" height="118" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="m8H" x="46" y="238">Why not one wide mart with all of it?</text>
+        <text class="m8N" x="46" y="262">Merging them forces a single grain, and there is no grain that serves all three. At merchant-day-hour the</text>
+        <text class="m8N" x="46" y="282">funnel questions lose their denominators, because a cart has no merchant-hour. At day, the merchant</text>
+        <text class="m8N" x="46" y="302">question disappears entirely. Three marts is not duplication: it is the only arrangement where every</text>
+        <text class="m8N" x="46" y="322">measure in each one stays additive over the columns beside it.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - grain first, everything else follows</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Mart</th><th>Grain</th><th>Rows</th><th>Built from</th><th>The question it exists for</th></tr></thead>
+      <tbody>
+        <tr><td><code>mart_merchant_daily</code></td><td>merchant x day</td><td>600</td><td><code>fct_order_items</code> + <code>dim_merchants</code> + <code>dim_dates</code></td><td>Which merchant dropped, and by how much?</td></tr>
+        <tr><td><code>mart_funnel_daily</code></td><td>day</td><td>90</td><td>three <strong>pre-aggregated</strong> day-grain sets</td><td>Why did revenue move - carts, conversion or AOV?</td></tr>
+        <tr><td><code>mart_hourly_transactions</code></td><td>date x hour</td><td>753</td><td><code>fct_transactions</code> + <code>dim_dates</code> + <code>dim_time_of_day</code></td><td>When does money move, and when is it safe to deploy?</td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>A mart is not a smaller copy of the star<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Three differences, and each one is a decision somebody has to make on purpose:</p>
+        <ul>
+          <li><strong>The grain is chosen from the questions, not from the fact.</strong> <code>fct_order_items</code> is at order-line grain because that is what happened. <code>mart_merchant_daily</code> is at merchant-day grain because that is what gets asked. Nobody ever asks a question at line grain; they ask at the grain of a meeting.</li>
+          <li><strong>The metric definitions are baked in.</strong> <code>where facts.is_settled</code> lives inside the mart, so "revenue" already means settled money and no dashboard has to remember. That single filter is why the mart total equals the fact total, which is what <code>assert_mart_agrees_with_fact.sql</code> checks on every build.</li>
+          <li><strong>The dimension attributes people group by are flattened in.</strong> <code>merchant_name</code>, <code>merchant_category</code> and <code>merchant_tier</code> sit in the mart, so the common query has no joins at all. That is the speed everyone wanted, arrived at as a consequence rather than as the goal.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The test that keeps a mart honest</strong>
+          A mart that disagrees with the fact it aggregates is a second source of truth, and a second source of truth is worse than no mart because it looks authoritative. One singular test comparing the two totals, running on every build, is the cheapest governance in the whole project.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Ratios ship as a numerator and a denominator<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Look at the last two columns of <code>mart_merchant_daily</code>:</p>
+        <ul>
+          <li><code>aov_numerator</code> - settled net revenue for that merchant on that day</li>
+          <li><code>aov_denominator</code> - distinct settled orders for that merchant on that day</li>
+        </ul>
+        <p>There is no <code>aov</code> column, and that is deliberate. A stored ratio is only correct at the grain it was computed at. The moment somebody groups the mart up to a month, or across all merchants, a BI tool will happily average the daily ratios and produce a number that is not the average order value of anything.</p>
+        <p>The size of the error is easy to measure on this project: <code>sum(aov_numerator) / sum(aov_denominator)</code> gives <strong>116.93</strong>, the real AOV over 957 settled orders. Averaging the per-row ratios gives <strong>115.30</strong>. That is 1.4% wrong on a friendly dataset with 600 rows and no outliers, and the direction of the error changes with the shape of the data, so you cannot even correct for it.</p>
+        <div class="callout tip">
+          <strong>The rule, stated so you can put it in a review comment</strong>
+          Never store a rate, a percentage or an average in a mart. Store both of its parts, additively, and let the last step divide. If a consumer cannot divide, the consumer needs a metric layer, not a pre-divided column.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why marts are tables and staging models are views<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>One line in <code>dbt_project.yml</code> decides this for the whole folder:</p>
+        <ul>
+          <li><strong>staging: <code>+materialized: view</code></strong> - cheap, always fresh, nothing stored. A staging model is read once by the thing above it.</li>
+          <li><strong>marts: <code>+materialized: table</code></strong> - built once per run, read constantly, by people and dashboards and exports. Paying the compute once at build time instead of once per viewer is the entire argument.</li>
+        </ul>
+        <p>Incremental materialization is the next step up and this project deliberately does not use it: 1,434 fact rows rebuild in milliseconds, and an incremental model you cannot justify is just a correctness risk with extra configuration. The honest trigger for incremental is a full refresh that no longer fits your build window, not a feeling that tables are wasteful.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: THE FAN-OUT, ONE LAYER UP ============ -->
+  <section class="section" id="fanout">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the b5 lesson, applied at the mart layer</span>
+      <h2>How the funnel mart avoids the fan-out <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">Session b5 taught the rule on intermediate models: never join two facts at different grains, aggregate one of them first. <code>mart_funnel_daily</code> is that rule applied where the temptation is strongest, because a funnel mart looks exactly like a place where you would join carts, orders and payments together and be done.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 348" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Joining two facts inflates revenue to 121,002.81 while pre-aggregating each to day grain keeps it at 111,906.48">
+        <style>
+          .f8T { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .f8C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .f8B { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .f8K { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+          .f8H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .f8N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="396" height="38" rx="8" fill="#2B2B33"/>
+        <text class="f8T" x="44" y="53">The join that looks harmless</text>
+        <rect x="26" y="76" width="396" height="118" rx="6" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="f8C" x="44" y="100">fct_order_items joined to fct_transactions</text>
+        <text class="f8C" x="44" y="120">1,434 order lines x 1,060 payment attempts</text>
+        <text class="f8C" x="44" y="140">an order retried twice appears twice</text>
+        <text class="f8B" x="44" y="164">revenue becomes 121,002.81</text>
+        <text class="f8B" x="44" y="184">inflation: +9,096.33, and every row is valid</text>
+
+        <rect x="458" y="28" width="396" height="38" rx="8" fill="#3F7F72"/>
+        <text class="f8T" x="476" y="53">What mart_funnel_daily does</text>
+        <rect x="458" y="76" width="396" height="118" rx="6" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="f8C" x="476" y="100">carts CTE: one row per day</text>
+        <text class="f8C" x="476" y="120">sales CTE: one row per day, settled only</text>
+        <text class="f8C" x="476" y="140">payments CTE: one row per day</text>
+        <text class="f8K" x="476" y="164">then join three day-grain sets</text>
+        <text class="f8K" x="476" y="184">revenue stays 111,906.48, to the cent</text>
+
+        <rect x="26" y="214" width="828" height="116" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="f8H" x="46" y="240">A join is only safe when both sides are at the same grain</text>
+        <text class="f8N" x="46" y="264">Neither fact is at day grain, so the mart never touches them together. It reduces each one to the conformed</text>
+        <text class="f8N" x="46" y="284">day grain first and only then puts the three results side by side, which is why carts, conversion, orders,</text>
+        <text class="f8N" x="46" y="304">revenue and declines can sit in one row without any of them being wrong. The singular test</text>
+        <text class="f8N" x="46" y="324">assert_payments_never_fan_out_revenue is exactly this rule, enforced on every build.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - aggregate first, then join</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Read the mart: three CTEs, then a left join<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The whole model is three aggregations and a join, and the shape is worth memorising because you will write it every month:</p>
+        <ul>
+          <li><strong><code>carts</code></strong> aggregates <code>fct_carts</code> to one row per day: carts created, carts converted, cart value, abandoned value. Demand, including demand that never became money.</li>
+          <li><strong><code>sales</code></strong> aggregates <code>fct_order_items</code> to one row per day, filtered to settled: paid orders, net revenue, units.</li>
+          <li><strong><code>payments</code></strong> aggregates <code>fct_transactions</code> to one row per day: attempts, declines, declined amount.</li>
+          <li><strong>The final select</strong> starts <code>from carts</code> and left joins the other two, because a day can have carts and no sales but never sales with no carts. Every measure is wrapped in <code>coalesce(..., 0)</code>, so a quiet day is a row of zeros rather than a row of NULLs that break arithmetic downstream.</li>
+        </ul>
+        <p>Notice what the mart deliberately does not contain: no <code>conversion_rate</code>, no <code>aov</code>, no <code>decline_rate</code>. It ships <code>carts_created</code> and <code>carts_converted</code>, <code>net_revenue</code> and <code>paid_orders</code>, <code>payment_attempts</code> and <code>declines</code>. Six columns instead of three, and all six are additive.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Choosing which fact a mart is built from<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>mart_hourly_transactions</code> is built from the payments fact and not the sales fact, and the reason is a sentence you should be able to say out loud about every mart you build: <em>the question is about when money moves, and money moves at a payment attempt.</em></p>
+        <p>An order has one timestamp, which is when it was placed. A payment attempt has its own timestamp, and a retried order has several. If you answered the peak-hour question from the sales fact you would get the hour people <em>ordered</em>, which is a different question with a different answer and no way to see the declines. The peak hour on this dataset is 21:00 with 96 attempts; the top decline hour is not the same hour, which is the sort of thing only the payments fact can tell you.</p>
+        <p>The same logic explains why the hour lives in <code>dim_time_of_day</code> rather than in <code>dim_dates</code>: 24 rows once, instead of multiplying the date dimension by 24, and "what are our peak hours across all 90 days" needs to group by hour independently of the date.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Prove the grains, then prove the fan-out <span class="tag demo">★ 8 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">These editors run <strong>real DuckDB</strong> in your browser against this project already built from Bazaar's raw schema with dbt's own compiled SQL. The first Run downloads the engine (about 8 MB, once), then everything is local and every box is editable.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Count the grains.</strong> Three marts, three row counts, three different relationships to the 90 days. The row counts alone tell you the grains are genuinely different.</p></div>
+      <div class="step"><p><strong>Then break the rule on purpose.</strong> Join the two facts directly and watch revenue inflate by 9,096.33 while every single row stays perfectly valid.</p></div>
+      <div class="step"><p><strong>Edit both.</strong> Change the join key, drop the <code>is_settled</code> filter, add a merchant. The engine is real, so it will tell you the truth.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="600 merchant-days, 90 days, 753 date-hours. Three marts, three grains, one project.">
+      <pre class="sql-src">SELECT 'mart_merchant_daily' AS mart, 'one merchant per day' AS grain,
+       count(*) AS mart_rows, count(DISTINCT activity_date) AS distinct_days
+FROM main_marts.mart_merchant_daily
+UNION ALL
+SELECT 'mart_funnel_daily', 'one day',
+       count(*), count(DISTINCT activity_date)
+FROM main_marts.mart_funnel_daily
+UNION ALL
+SELECT 'mart_hourly_transactions', 'one date-hour',
+       count(*), count(DISTINCT activity_date)
+FROM main_marts.mart_hourly_transactions
+ORDER BY mart_rows DESC;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="111,906.48 from the mart. 121,002.81 from joining the two facts. The difference is 9,096.33 of revenue that does not exist.">
+      <pre class="sql-src">WITH from_the_mart AS (
+    SELECT round(sum(net_revenue), 2) AS revenue
+    FROM main_marts.mart_funnel_daily
+),
+joined_facts AS (
+    SELECT round(sum(f.net_amount), 2) AS revenue
+    FROM main_marts.fct_order_items f
+    JOIN main_marts.fct_transactions t ON t.order_id = f.order_id
+    WHERE f.is_settled
+)
+SELECT from_the_mart.revenue AS mart_revenue,
+       joined_facts.revenue  AS joined_two_facts,
+       round(joined_facts.revenue - from_the_mart.revenue, 2) AS invented_revenue
+FROM from_the_mart CROSS JOIN joined_facts;</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The 121,003 number is the one that ends up in a board pack.</strong> Nobody writes that join to be wrong; they write it because the order id is right there on both facts and the join runs without an error. There is no NULL, no duplicate key and no failed test in the generic suite - the shape is perfect and the meaning is 8.1% too big. This is why the fan-out rule has to be a rule rather than a judgement call, and why the guard against it is a singular test in <code>tests/</code> that runs on every build rather than a paragraph in a wiki.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>The four questions, against dbt-built marts <span class="tag demo">★ 16 min · build your own</span></h2>
+    </div>
+    <p class="lede">These are the four questions the hand-built warehouse in <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a> was built to answer. Same questions, same marts, same numbers - now produced by SQL that is version controlled, dependency ordered and tested on every build. Watch for the fact that nothing in the answers gets better. That is the honest sales pitch.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Run each one and check the number against the caption.</strong> If they match, the rebuild is correct; if they ever stop matching, a test in <code>tests/</code> would have failed first.</p></div>
+      <div class="step"><p><strong>Notice how short the SQL is.</strong> Every one of these is a group-by over a single mart. That brevity is the mart layer earning its keep.</p></div>
+      <div class="step"><p><strong>Then ask a fifth question of your own</strong> and see whether an existing mart answers it. If it needs a new grain, you have just discovered a fourth mart.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Which merchant dropped, and is it one merchant or the market?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The fortnight boundaries come from <code>vars</code> in <code>dbt_project.yml</code>, so no model and no analysis invents its own idea of "the last fortnight". The last column is the one that turns a merchant story into a market story.</p>
+        <div class="sqlbox" data-setup="built" data-caption="M07 Nimbus Audio: 3,063 to 455, down 85.2%. And 8 of 12 merchants are down, so this is a market move with one bad outlier, not one merchant's problem.">
+          <pre class="sql-src">WITH fortnights AS (
+    SELECT merchant_id, merchant_name,
+           sum(CASE WHEN activity_date &gt;= DATE '2026-06-16'
+                    THEN net_revenue ELSE 0 END) AS recent_14d,
+           sum(CASE WHEN activity_date &gt;= DATE '2026-06-02'
+                     AND activity_date &lt;  DATE '2026-06-16'
+                    THEN net_revenue ELSE 0 END) AS prior_14d
+    FROM main_marts.mart_merchant_daily
+    GROUP BY 1, 2
+)
+SELECT merchant_id, merchant_name,
+       round(prior_14d, 0)  AS prior_14d,
+       round(recent_14d, 0) AS recent_14d,
+       round(100.0 * (recent_14d - prior_14d) / prior_14d, 1) AS pct_change,
+       sum(CASE WHEN recent_14d &lt; prior_14d THEN 1 ELSE 0 END) OVER () AS merchants_down_of_12
+FROM fortnights
+ORDER BY pct_change
+LIMIT 5;</pre>
+        </div>
+        <p>Two answers in one result set, which is the whole reason the merchant-day grain exists. Ranked by percentage change you get M07 at -85.2%. Ranked by absolute change you would get M01 Kettle &amp; Co, which lost more money while falling only 12.5%. Both are true; which one you take to a meeting depends on whether you are protecting revenue or protecting a merchant relationship.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · Why did revenue move - carts, conversion or AOV?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This is the decomposition the funnel mart was built for: revenue equals carts times conversion times AOV, so a drop is always one of those three moving and the arithmetic is checkable in one place. Note that AOV is computed here as <code>sum(revenue) / sum(orders)</code> - the numerator-and-denominator discipline paying off in the query rather than in the model.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Revenue 22,906 to 15,963, down 30.3%. That decomposes into carts -21.6% (398 to 312) and AOV -8.1% (128.68 to 118.25), with conversion nearly flat at 47.2% to 44.9%.">
+          <pre class="sql-src">WITH fortnights AS (
+    SELECT CASE WHEN activity_date &gt;= DATE '2026-06-16'
+                THEN 'recent' ELSE 'prior' END AS fortnight,
+           sum(carts_created)   AS carts,
+           sum(carts_converted) AS converted,
+           sum(paid_orders)     AS orders,
+           sum(net_revenue)     AS revenue
+    FROM main_marts.mart_funnel_daily
+    WHERE activity_date &gt;= DATE '2026-06-02'
+    GROUP BY 1
+)
+SELECT fortnight,
+       carts,
+       round(100.0 * converted / carts, 1) AS conversion_pct,
+       orders,
+       round(revenue, 0)         AS revenue,
+       round(revenue / orders, 2) AS aov
+FROM fortnights
+ORDER BY fortnight DESC;</pre>
+        </div>
+        <p>The answer is a demand problem plus a basket problem, not a checkout problem. That distinction sends the work to marketing and merchandising rather than to engineering, and it is only visible because the mart keeps carts, conversions, orders and revenue at the same grain with all four denominators intact.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q3 · What happened on the bad day?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>2026-06-10</code> is the incident day, and it is a <code>var</code> in the project config for the same reason the fortnights are. The scalar subquery reaches into the payments fact for the reason, which is a drill-down from the mart into the star - exactly the path a mart should leave open.</p>
+        <div class="sqlbox" data-setup="built" data-caption="24 carts, 13 converted, but only 8 paid orders and 484 in revenue. 17 payment attempts, 9 declines, a 52.9% decline rate, all gateway_timeout. A payment outage, not a demand problem.">
+          <pre class="sql-src">SELECT f.activity_date,
+       f.carts_created,
+       f.carts_converted,
+       f.paid_orders,
+       round(f.net_revenue, 0) AS net_revenue,
+       f.payment_attempts,
+       f.declines,
+       round(100.0 * f.declines / f.payment_attempts, 1) AS decline_rate_pct,
+       (SELECT t.decline_reason
+          FROM main_marts.fct_transactions t
+          JOIN main_marts.dim_dates d ON d.date_key = t.date_key
+         WHERE d.date_day = f.activity_date AND t.is_declined = 1
+         GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS top_decline_reason
+FROM main_marts.mart_funnel_daily f
+WHERE f.activity_date = DATE '2026-06-10';</pre>
+        </div>
+        <p>The gap between 13 converted carts and 8 paid orders is the whole story, and it is only a gap because the mart holds demand and money side by side. Against the 6.2% baseline decline rate for the whole period, a 52.9% day is not a variation - it is an outage. Change the date and re-run to see what a normal day looks like.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q4 · When does money move?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The hourly mart pre-aggregates the payments fact to date-hour, so this question is a group-by over 753 rows instead of a scan of 1,060 attempts with a timestamp function in the GROUP BY.</p>
+        <div class="sqlbox" data-setup="built" data-caption="Peak 21:00 with 96 attempts, then 19:00 with 94, then 13:00 and 20:00 tied at 89. Split by is_weekend and the weekday peak is 20:00 while the weekend peak is 21:00.">
+          <pre class="sql-src">SELECT hour_label, daypart,
+       sum(attempts)  AS attempts,
+       sum(approvals) AS approvals,
+       sum(declines)  AS declines
+FROM main_marts.mart_hourly_transactions
+GROUP BY 1, 2
+ORDER BY attempts DESC, hour_label
+LIMIT 4;</pre>
+        </div>
+        <p>Add <code>is_weekend</code> to the GROUP BY and you get the answer that actually changes a decision: the weekday peak is 20:00 with 64 attempts and the weekend peak is 21:00 with 41, so a single deploy freeze window is wrong on both kinds of day. The mart keeps <code>day_name</code> and <code>is_weekend</code> flattened in for precisely this follow-up question.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What changed, now that the answers are identical<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. Every number above matches the hand-built warehouse to the cent, and it should - the SQL computing them is barely different. What changed is everything about how a change to those definitions happens now:</p>
+        <ul>
+          <li><strong>A mart change is a reviewable diff.</strong> Moving <code>is_settled</code>, adding a merchant tier, changing the fortnight boundary: all of it shows up as a pull request with a before and an after, seen by a second person before it reaches a dashboard. The hand-written version had a definition change look exactly like a whitespace change.</li>
+          <li><strong>The mart cannot silently disagree with the star.</strong> <code>assert_mart_agrees_with_fact.sql</code> compares the two totals on every build, and a failure SKIPs everything downstream instead of publishing.</li>
+          <li><strong>The rebuild is one command with a blast radius you can see.</strong> <code>dbt build --select marts</code> rebuilds all twelve mart models and runs their tests. <code>dbt build --select mart_funnel_daily+</code> rebuilds just that mart and everything that depends on it.</li>
+          <li><strong>The definitions are documented where they are implemented.</strong> The grain of each mart is the first line of its file, and the same text is in <code>_marts__models.yml</code> and therefore in the generated docs. It cannot drift, because there is only one copy.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 25-35 min total</span></h2>
+    </div>
+    <ul>
+      <li>Run <code>dbt build --select marts</code> on this project and time it. Then run <code>dbt build --select mart_merchant_daily+</code> and compare. Knowing the difference between those two commands is most of what "safe iteration" means in practice.</li>
+      <li>Open your own most-used mart and write down its grain in one sentence, starting with the words "one row per". If you cannot finish the sentence, you have found this week's real work.</li>
+      <li>Grep your marts for stored ratios: any column ending in <code>_rate</code>, <code>_pct</code>, <code>_avg</code> or <code>_ratio</code>. For each one, replace it with its two parts and see whether any dashboard breaks. The ones that break were averaging an average.</li>
+      <li>Find one mart in your project that joins two fact tables. Check whether the join changes a total by aggregating one side first and comparing, the way the second box above does. Bring the number.</li>
+      <li>List the questions your busiest dashboard asks and the grain each one is asked at. If there is more than one grain, you either need a second mart or you have already got a wrong number somewhere. Bring the list to b9, where contracts make the mart's shape a promise.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - materializations, table versus view versus ephemeral, config per folder</span><span class="note">Part 1 self-study · why marts are tables and staging models are views, and when incremental is honest</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Community layering conventions - the marts layer, one mart per question set, flattening dimension attributes</span><span class="note">Parts 1-2 · three marts read line by line, with the grain of each one stated first</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - grain, additivity, conformed dimensions, aggregate fact tables</span><span class="note">Recap only for the marts being implemented · the model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Metric definitions as a governed artifact (semantic layer, MetricFlow)</span><span class="note">Named only · this project bakes definitions into marts and ships ratios as parts</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Scheduling the mart rebuild, and loading the raw tables it depends on</span><span class="note">Out of scope by design - orchestration is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a> and extraction is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Why does this project have three marts instead of one wide one?</p>
+      <button class="qopt" type="button">A · Three smaller tables query faster than one large one</button>
+      <button class="qopt" type="button">B · Each team owns its own mart</button>
+      <button class="qopt" type="button">C · Merchant-day, day and date-hour are three different grains, and merging them forces a single grain that fits none of the three question sets</button>
+      <p class="qwhy">At merchant-day-hour the funnel questions lose their denominators, because a cart has no merchant-hour. At day, the merchant question disappears. Three marts is not duplication - it is the only arrangement where every measure stays additive over the columns beside it.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · <code>mart_funnel_daily</code> needs carts, orders and payments in one row. What does it join?</p>
+      <button class="qopt" type="button">A · Three CTEs, each already aggregated to one row per day - never the facts themselves</button>
+      <button class="qopt" type="button">B · <code>fct_order_items</code> to <code>fct_transactions</code> on <code>order_id</code>, then <code>fct_carts</code></button>
+      <button class="qopt" type="button">C · The three facts through <code>dim_dates</code>, which makes it safe</button>
+      <p class="qwhy">A join is only safe when both sides are at the same grain, and none of the three facts is at day grain. Joining the two facts directly inflates revenue from 111,906.48 to 121,002.81 with no NULL, no duplicate key and no failing generic test - which is why the guard is a singular test.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · Why does <code>mart_merchant_daily</code> ship <code>aov_numerator</code> and <code>aov_denominator</code> instead of an <code>aov</code> column?</p>
+      <button class="qopt" type="button">A · Two integers are cheaper to store than one decimal</button>
+      <button class="qopt" type="button">B · A stored ratio is only correct at the grain it was computed at, so grouping the mart up would average an average - 115.30 instead of the real 116.93</button>
+      <button class="qopt" type="button">C · The BI tool cannot read decimal columns</button>
+      <p class="qwhy">Store both parts additively and let the last step divide. On this friendly dataset the error is 1.4%, and because its direction depends on the shape of the data you cannot even correct for it. Never store a rate, a percentage or an average in a mart.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 8 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>What a mart is</b><span>The star pre-aggregated to the grain a question set is asked at, with the definitions baked in.</span></div>
+      <div class="cheat-item"><b>Grain first</b><span>merchant-day (600 rows) · day (90) · date-hour (753). Row counts prove they differ.</span></div>
+      <div class="cheat-item"><b>Why not one mart</b><span>One grain cannot serve three question sets. Merging destroys somebody's denominator.</span></div>
+      <div class="cheat-item"><b>Never join two facts</b><span>121,002.81 instead of 111,906.48. Aggregate each to the conformed grain first.</span></div>
+      <div class="cheat-item"><b>Ratios as parts</b><span>aov_numerator + aov_denominator. Averaging averages gives 115.30, not 116.93.</span></div>
+      <div class="cheat-item"><b>Marts are tables</b><span>One line in dbt_project.yml. Pay the compute once at build, not once per viewer.</span></div>
+      <div class="cheat-item"><b>The four answers</b><span>M07 -85.2% (8 of 12 down) · revenue -30.3% = carts -21.6% x AOV -8.1% · 2026-06-10 gateway_timeout, 52.9% declines · peak 21:00, 96 attempts.</span></div>
+      <div class="cheat-item"><b>Ship it</b><span><code>dbt build --select marts</code>. A mart change is now a reviewable diff. Next: b9, contracts.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 8 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b7-break-a-model.html">← Previous: The break-a-model lab</a> &nbsp;·&nbsp; <a href="b9-contracts-docs-ci.html">Next: Contracts, docs and deployment →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

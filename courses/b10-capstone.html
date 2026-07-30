@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 10 · Capstone: add a subject area - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 10 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 10 of 10</div>
+    <h1>Capstone: <span class="accent">add a subject area</span></h1>
+    <p class="sub">Nine sessions read a finished project. This one asks you to extend it, alone, through every layer: source, staging, intermediate, dimension, fact, tests, mart and contract. The subject area is returns and refunds - a shopper asks to send something back, the merchant approves or rejects, an approved return triggers a refund, and the unit is resold or written off. Five checkpoints, each with one deliverable and one trap that has caught real teams. The acceptance criteria are stated before you start, and the finish line is a green <code>dbt build</code>.</p>
+    <div class="chip-row">
+      <span class="chip level">🔴 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">60 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-4 · The brief and the acceptance criteria</span>
+      <span class="a2" style="flex:3">4-16 · Checkpoints 1-2 · source, staging, intermediate</span>
+      <span class="a3" style="flex:7">16-48 · Checkpoints 3-5 · dimension, fact, tests, mart, contract</span>
+      <span class="a4" style="flex:3">48-60 · Green build, review and where next</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>The brief, and what "done" means</h2>
+    </div>
+    <p class="lede">Bazaar now accepts returns. The behaviour, as the product team describes it: a shopper requests a return on a single order line and gives a reason - <code>damaged</code>, <code>wrong_item</code>, <code>changed_mind</code> or <code>not_as_described</code>. The merchant approves or rejects the request. An approved return triggers a refund transaction, which is money leaving. The returned unit is either resellable or written off.</p>
+    <p class="lede">Read that paragraph twice before you write anything, because four modeling decisions are hiding in it. A return has its <em>own date</em>, separate from the sale. A return can be <em>rejected</em>, so it is not the same population as a refund. A return is at <em>return-line grain</em>, which is not order-line grain. And the refund is already visible in a fact you have - there are 37 refunded transactions in <code>fct_transactions</code> today, with no explanation attached to any of them. Your job is to build the explanation.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ Acceptance criteria - agree these before you start</strong>
+      1 · A source declared for the raw returns table, and one staging model doing four jobs only: rename, recast, light clean, no joins. 2 · One intermediate model joining returns to the order lines they belong to. 3 · <code>dim_return_reasons</code> with a modelled <code>reason_group</code>, and <code>fct_returns</code> as a NEW fact at return-line grain - not columns on <code>fct_order_items</code>. 4 · Three tests: two generic on the new key and the new enum, one singular reconciling refund value against <code>fct_transactions</code>. 5 · A mart at merchant-day grain carrying returns and return value beside sold units as the correct denominator, plus a model contract on it. 6 · <code>dbt build</code> green, which means every model built, every test passing, and zero SKIPs.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: THE FIVE CHECKPOINTS ============ -->
+  <section class="section" id="plan">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · the whole build, on one page</span>
+      <h2>Five checkpoints, five traps <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">Every checkpoint has one deliverable and one trap. The traps are not exotic - each one is the mistake a competent person makes when they are moving quickly, which is why they are worth naming out loud before you begin.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 438" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The five capstone checkpoints with their layer, deliverable and trap, and the acceptance bar at the bottom">
+        <style>
+          .p0T { font: 700 11.5px Inter, sans-serif; fill: #FFFFFF; }
+          .p0L { font: 700 11.5px Inter, sans-serif; fill: #22222A; }
+          .p0C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .p0B { font: 400 11.5px Inter, sans-serif; fill: #991B1B; }
+          .p0H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .p0N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="828" height="32" rx="7" fill="#2B2B33"/>
+        <text class="p0T" x="42" y="47">#</text>
+        <text class="p0T" x="76" y="47">Layer</text>
+        <text class="p0T" x="286" y="47">Deliverable</text>
+        <text class="p0T" x="574" y="47">The trap</text>
+
+        <rect x="26" y="66" width="828" height="52" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="p0L" x="42" y="88">1</text>
+        <text class="p0L" x="76" y="88">source +</text>
+        <text class="p0L" x="76" y="106">staging</text>
+        <text class="p0C" x="286" y="88">raw.returns declared once, plus</text>
+        <text class="p0C" x="286" y="106">stg_bazaar__returns doing 4 jobs</text>
+        <text class="p0B" x="574" y="88">a join sneaks into the staging</text>
+        <text class="p0B" x="574" y="106">model because it is convenient</text>
+
+        <rect x="26" y="126" width="828" height="52" rx="6" fill="#FFFFFF" stroke="#E6E4E9"/>
+        <text class="p0L" x="42" y="148">2</text>
+        <text class="p0L" x="76" y="148">intermediate</text>
+        <text class="p0C" x="286" y="148">int_returns_enriched joins each</text>
+        <text class="p0C" x="286" y="166">return to its order line</text>
+        <text class="p0B" x="574" y="148">returned quantity can exceed the</text>
+        <text class="p0B" x="574" y="166">quantity sold - no CHECK sees that</text>
+
+        <rect x="26" y="186" width="828" height="52" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="p0L" x="42" y="208">3</text>
+        <text class="p0L" x="76" y="208">dimension +</text>
+        <text class="p0L" x="76" y="226">fact</text>
+        <text class="p0C" x="286" y="208">dim_return_reasons with a modelled</text>
+        <text class="p0C" x="286" y="226">reason_group, and fct_returns</text>
+        <text class="p0B" x="574" y="208">bolting return columns onto</text>
+        <text class="p0B" x="574" y="226">fct_order_items - a different grain</text>
+
+        <rect x="26" y="246" width="828" height="52" rx="6" fill="#FFFFFF" stroke="#E6E4E9"/>
+        <text class="p0L" x="42" y="268">4</text>
+        <text class="p0L" x="76" y="268">tests</text>
+        <text class="p0C" x="286" y="268">2 generic on the new key and enum,</text>
+        <text class="p0C" x="286" y="286">1 singular on the refund money</text>
+        <text class="p0B" x="574" y="268">testing shape only, so a refund</text>
+        <text class="p0B" x="574" y="286">total can drift without a failure</text>
+
+        <rect x="26" y="306" width="828" height="52" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="p0L" x="42" y="328">5</text>
+        <text class="p0L" x="76" y="328">mart +</text>
+        <text class="p0L" x="76" y="346">contract</text>
+        <text class="p0C" x="286" y="328">mart_returns_daily at merchant-day,</text>
+        <text class="p0C" x="286" y="346">with a contract on its shape</text>
+        <text class="p0B" x="574" y="328">shipping return_rate instead of</text>
+        <text class="p0B" x="574" y="346">its numerator and denominator</text>
+
+        <rect x="26" y="370" width="828" height="52" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="p0H" x="46" y="394">The bar: dbt build green</text>
+        <text class="p0N" x="46" y="414">Every model built, every test passing, zero SKIPs. A SKIP means something upstream failed and you did not notice.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the whole capstone, deliverable and trap per checkpoint</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>How the browser labs relate to the real project<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>There is no Python in a browser, so no Jinja is rendered here and no <code>dbt build</code> runs. What the boxes below do is execute the SQL each model would compile to, on real DuckDB, against the real Bazaar warehouse - so the logic, the joins, the keys and the numbers are genuine even though the orchestration is not.</p>
+        <p>Two consequences worth understanding before you start:</p>
+        <ul>
+          <li><strong>There are no returns tables in the browser database.</strong> The project as shipped has eight sources and none of them is returns. So each box that needs returns creates the raw table first, deriving a handful of rows from the 37 refunded transactions that really are in <code>raw.transactions</code>. That seed block repeats at the top of several boxes on purpose: every box is independent and starts from a clean database.</li>
+          <li><strong>In your repo, each box becomes a file.</strong> <code>CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS ...</code> is what dbt does with <code>models/staging/stg_bazaar__returns.sql</code> plus <code>+materialized: view</code>. You write the SELECT; the wrapper is dbt's job.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>Do it in the repo too</strong>
+          The browser is for thinking. The capstone is only finished when <code>dbt build</code> is green on your own machine, because the parts a browser cannot show you - the DAG picking up your new edges, the tests interleaving with the models, the contract enforced before the object lands - are precisely the parts you came here to learn.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What already exists that you must not duplicate<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Before adding anything, inventory what is there. The project has 23 models, 100 tests, 1 snapshot and 8 sources, and returns touch several of them:</p>
+        <ul>
+          <li><strong><code>fct_transactions</code> already holds the refunds.</strong> 37 rows with <code>is_refund = 1</code> and a negative <code>attempt_amount</code>. Do not re-model the money; reconcile against it.</li>
+          <li><strong><code>dim_dates</code> already covers 2026-03-01 to 2026-09-30,</strong> which is wider than the data on purpose - so return dates resolve without you touching the calendar.</li>
+          <li><strong><code>dim_merchants</code>, <code>dim_products</code> and <code>dim_users</code> are conformed.</strong> Your new fact reuses them unchanged. That is what conformed means, and it is why this checkpoint list has only one new dimension in it.</li>
+          <li><strong><code>stg_bazaar__order_items</code> and <code>stg_bazaar__orders</code> are the staging models your intermediate model joins.</strong> An intermediate model reads staging, not marts.</li>
+        </ul>
+        <p>A new subject area that needs four new dimensions is usually a new subject area that has not been thought about yet. Returns needs exactly one, because the only genuinely new descriptive thing in the brief is the reason.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: WHY A NEW FACT ============ -->
+  <section class="section" id="newfact">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the decision that determines everything downstream</span>
+      <h2>Why returns are a new fact, not columns <span class="tag concept">6 min live</span></h2>
+    </div>
+    <p class="lede">The tempting move is three columns on <code>fct_order_items</code>: <code>units_returned</code>, <code>refund_value</code>, <code>return_reason</code>. It looks smaller, it avoids a join, and it is wrong for three separate reasons - any one of which would be enough on its own.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 344" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Columns on the sales fact versus a new returns fact, and what happens to return_rate in each case">
+        <style>
+          .n0T { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .n0C { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .n0B { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .n0K { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+          .n0H { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .n0N { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="28" width="396" height="38" rx="8" fill="#2B2B33"/>
+        <text class="n0T" x="44" y="53">Columns on fct_order_items</text>
+        <rect x="26" y="76" width="396" height="122" rx="6" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="n0C" x="44" y="100">grain stays order line at time of sale</text>
+        <text class="n0C" x="44" y="120">the return date has nowhere to live</text>
+        <text class="n0C" x="44" y="140">a rejected return has no columns to fill</text>
+        <text class="n0C" x="44" y="160">two returns on one line cannot both fit</text>
+        <text class="n0B" x="44" y="184">return_rate fans out and stops summing</text>
+
+        <rect x="458" y="28" width="396" height="38" rx="8" fill="#3F7F72"/>
+        <text class="n0T" x="476" y="53">fct_returns, a new fact</text>
+        <rect x="458" y="76" width="396" height="122" rx="6" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="n0C" x="476" y="100">grain: one return line, its own key</text>
+        <text class="n0C" x="476" y="120">own date_key = the request date</text>
+        <text class="n0C" x="476" y="140">own status, plus a reason dimension</text>
+        <text class="n0C" x="476" y="160">reuses the conformed merchant and date</text>
+        <text class="n0K" x="476" y="184">rate = numerator / denominator, additive</text>
+
+        <rect x="26" y="216" width="828" height="114" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="n0H" x="46" y="242">The unsummable-rate problem, concretely</text>
+        <text class="n0N" x="46" y="266">Put units_returned on the sales fact and a two-line order with one returned line gives you two rows: one with a</text>
+        <text class="n0N" x="46" y="286">return and one without. Group by merchant and month and every consumer must remember which rows to count</text>
+        <text class="n0N" x="46" y="306">in the denominator. Keep them apart, aggregate each to merchant-day, and units_returned over units_sold is two</text>
+        <text class="n0N" x="46" y="326">additive sums that anybody can divide at any grain. Three tables, one correct answer.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - different grain, different date, different population</figcaption>
+    </figure>
+
+    <table class="clean">
+      <thead><tr><th>Question the brief raises</th><th>Answer</th><th>Where it lands</th></tr></thead>
+      <tbody>
+        <tr><td>What is one row?</td><td>One requested return on one order line</td><td><code>fct_returns</code> grain, key <code>return_line_sk</code></td></tr>
+        <tr><td>Which date is the fact's date?</td><td>When the return was requested, not when the order was placed</td><td><code>date_key</code> resolved from <code>requested_at</code></td></tr>
+        <tr><td>Is a rejected return in the fact?</td><td>Yes - a request is a business event even when it is refused</td><td><code>return_status</code> plus an <code>is_approved</code> flag</td></tr>
+        <tr><td>Where does the refund money live?</td><td>Already in <code>fct_transactions</code>; the returns fact must agree with it</td><td>The singular test in checkpoint 4</td></tr>
+        <tr><td>Is "damaged" a fact column or a dimension?</td><td>A dimension, because it needs a grouping nobody wants to repeat</td><td><code>dim_return_reasons.reason_group</code></td></tr>
+        <tr><td>Do we need new merchant or date dimensions?</td><td>No - they are conformed and reused unchanged</td><td>Existing <code>dim_merchants</code>, <code>dim_dates</code>, <code>dim_products</code>, <code>dim_users</code></td></tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why the reason becomes a dimension with a modelled group<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Four reason codes is small enough to feel like a column, and turning them into a dimension is still the right call - not for storage, for the grouping. The first question anybody asks about returns is "how many of these are our fault", and the answer requires a mapping: <code>damaged</code>, <code>wrong_item</code> and <code>not_as_described</code> are merchant-controllable, while <code>changed_mind</code> is shopper choice.</p>
+        <p>That mapping has to live somewhere. In a dimension it is one row per reason, written once, testable with <code>accepted_values</code>, visible in the docs and changeable in a reviewable diff. In a CASE statement it lives in whichever query somebody wrote most recently, and within a quarter you have three versions of "our fault" and a meeting about which one is right.</p>
+        <p><code>dim_return_reasons</code> therefore carries the code, the human label, <code>reason_group</code> and a boolean like <code>is_fulfilment_failure</code>. Small dimension, high leverage - which is the same argument as <code>dim_payment_methods</code>, five rows, doing the same job for payment method families.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Common wrong turns<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Six ways this capstone goes sideways. Every one has happened to a real team, and most of them build green before they bite:</p>
+        <ul>
+          <li><strong>Columns on the sales fact.</strong> The trap of checkpoint 3. Builds fine, passes every generic test, and makes <code>return_rate</code> unsummable forever. The tell is a consumer asking "which rows do I count in the denominator".</li>
+          <li><strong>Filtering rejected returns out at staging.</strong> Then your fact silently means "approved returns", the rejection rate becomes unanswerable, and nobody can tell whether returns are rising or approvals are loosening. Keep the population whole and flag the status.</li>
+          <li><strong>Using the order date as the return date.</strong> Convenient, produces a plausible-looking mart, and makes every trend in it wrong by however long the return window is. A return is its own event with its own date.</li>
+          <li><strong>Joining <code>fct_returns</code> to <code>fct_order_items</code> in the mart.</strong> Two facts, two grains, the b5 and b8 lesson. Aggregate each to merchant-day first, then put them side by side.</li>
+          <li><strong>Shipping a <code>return_rate</code> column.</strong> The trap of checkpoint 5. Store <code>return_rate_numerator</code> and <code>return_rate_denominator</code> and let the consumer divide, exactly as <code>aov_numerator</code> and <code>aov_denominator</code> already do.</li>
+          <li><strong>Adding a <code>CHECK</code> constraint for returned quantity.</strong> The trap of checkpoint 2, and the most interesting one: a constraint can only see one row of one table, and this rule compares two tables. It has to be a test.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Where snapshots and incremental models would come in<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Two things the brief does not ask for, and it is worth knowing why. A return moves through states - requested, then approved or rejected - so if the source table overwrites <code>merchant_decision</code> in place, the history of that decision is lost and a <code>strategy: check</code> snapshot on the returns source is the correct answer, exactly as <code>merchants_snapshot</code> does for commission changes.</p>
+        <p>Incremental materialization is the other one, and the honest trigger for it is a full refresh that no longer fits your build window. Forty return lines does not qualify, and an incremental model you cannot justify is a correctness risk with extra configuration. Note the shape of the decision though: returns are append-mostly with a late-updating status column, which is the case where incremental is genuinely hard and where people quietly lose rows.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ CHECKPOINT 1 ============ -->
+  <section class="section" id="cp1">
+    <div class="section-kicker">
+      <span class="klabel">Checkpoint 1 of 5 · 6 min · you build</span>
+      <h2>Source and staging <span class="tag demo">★ four jobs, no joins</span></h2>
+    </div>
+    <p class="lede">Declare the raw table once, then write exactly one staging model for it. The staging layer has a job description and returns do not get an exception.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Declare the source.</strong> In <code>models/staging/_bazaar__sources.yml</code>, add <code>returns</code> to the <code>bazaar</code> source. That is the only place the raw table name is ever written, and it takes the project from 8 sources to 9.</p></div>
+      <div class="step"><p><strong>Write one staging model,</strong> <code>stg_bazaar__returns.sql</code>, doing four jobs and nothing else: rename to the project's vocabulary, recast the timestamp, lightly clean the enums with <code>lower(trim(...))</code>, and normalise the refund sign so downstream money is positive. No joins.</p></div>
+      <div class="step"><p><strong>Add the two tests that belong at this layer:</strong> <code>unique</code> and <code>not_null</code> on <code>return_id</code>, and <code>accepted_values</code> on <code>return_reason</code> with the four codes. Test the enum where it enters the project, not after it has spread.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Forty raw return requests seeded from real refunded transactions, then the staging model. Rename, recast, clean, sign-normalise - and not one join.">
+      <pre class="sql-src">-- The loader lands raw.returns. In the repo this table is DECLARED in
+-- _bazaar__sources.yml and never written again outside source('bazaar','returns').
+CREATE OR REPLACE TABLE raw.returns AS
+WITH refunded AS (
+    SELECT order_id, abs(amount) AS refund_amount, txn_ts,
+           row_number() OVER (ORDER BY txn_id) AS seq
+    FROM raw.transactions WHERE status = 'refunded'
+),
+rejected AS (
+    SELECT o.order_id, 0.0 AS refund_amount, o.order_ts + INTERVAL 3 DAY AS txn_ts,
+           100 + row_number() OVER (ORDER BY o.order_id) AS seq
+    FROM raw.orders o
+    WHERE o.status = 'paid' AND o.order_id % 250 = 0
+),
+requests AS (SELECT * FROM refunded UNION ALL SELECT * FROM rejected),
+top_line AS (
+    SELECT order_id, line_no, quantity,
+           row_number() OVER (PARTITION BY order_id
+                              ORDER BY quantity * unit_price DESC, line_no) AS rn
+    FROM raw.order_items
+)
+SELECT cast(9000 + q.seq AS BIGINT) AS return_id,
+       q.order_id, l.line_no,
+       CASE WHEN q.seq % 7 = 0 THEN l.quantity + 1 ELSE l.quantity END AS return_qty,
+       CASE q.seq % 4 WHEN 0 THEN 'damaged' WHEN 1 THEN 'wrong_item'
+            WHEN 2 THEN 'changed_mind' ELSE 'not_as_described' END      AS reason_code,
+       CASE WHEN q.seq &gt; 99 THEN 'rejected' ELSE 'approved' END         AS merchant_decision,
+       CASE WHEN q.seq % 3 = 0 THEN 'written_off' ELSE 'resellable' END AS unit_disposition,
+       cast(q.txn_ts AS TIMESTAMP) AS requested_ts,
+       q.refund_amount
+FROM requests q JOIN top_line l ON l.order_id = q.order_id AND l.rn = 1;
+
+-- models/staging/stg_bazaar__returns.sql - four jobs, no joins.
+CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS
+SELECT return_id,
+       order_id,
+       line_no,
+       cast(return_qty AS INTEGER)     AS return_quantity,
+       lower(trim(reason_code))        AS return_reason,
+       lower(trim(merchant_decision))  AS return_status,
+       lower(trim(unit_disposition))   AS unit_disposition,
+       cast(requested_ts AS TIMESTAMP) AS requested_at,
+       round(refund_amount, 2)         AS refund_value
+FROM raw.returns;
+
+SELECT * FROM main_staging.stg_bazaar__returns ORDER BY return_id LIMIT 8;</pre>
+    </div>
+
+    <p class="lede"><strong>The trap.</strong> You will want to pull <code>merchant_id</code> in here, because the return needs a merchant and the order line has one sitting right there. Do not. A staging model that joins is a staging model somebody will later mistake for a fact, and the first thing that happens is a second staging model joining differently. The join is checkpoint 2's job, and it exists as a separate layer for exactly this reason.</p>
+  </section>
+
+  <!-- ============ CHECKPOINT 2 ============ -->
+  <section class="section" id="cp2">
+    <div class="section-kicker">
+      <span class="klabel">Checkpoint 2 of 5 · 6 min · you build</span>
+      <h2>The intermediate model <span class="tag demo">★ and the trap no constraint can catch</span></h2>
+    </div>
+    <p class="lede">One ephemeral model that does the join staging was not allowed to do: every return, attached to the order line it belongs to, carrying the sold quantity and the dimension keys the fact will need.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Write <code>int_returns_enriched.sql</code></strong> joining <code>stg_bazaar__returns</code> to <code>stg_bazaar__order_items</code> on <code>(order_id, line_no)</code>, and to <code>stg_bazaar__orders</code> for the user. Ephemeral, so it is inlined into the fact and never materialized.</p></div>
+      <div class="step"><p><strong>Bring <code>units_sold</code> through</strong> even though the fact does not strictly need it. It is what makes the checkpoint-2 test possible, and carrying one column to enable a test is always a good trade.</p></div>
+      <div class="step"><p><strong>Then run the test.</strong> A returned quantity greater than the quantity sold is impossible in the business and perfectly legal in the database. Five rows come back.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Five rows: returns of 2 units against lines that sold 1. A real data-quality failure, invisible to any single-table constraint, caught by one query.">
+      <pre class="sql-src">CREATE OR REPLACE TABLE raw.returns AS
+WITH refunded AS (
+    SELECT order_id, abs(amount) AS refund_amount, txn_ts,
+           row_number() OVER (ORDER BY txn_id) AS seq
+    FROM raw.transactions WHERE status = 'refunded'
+),
+rejected AS (
+    SELECT o.order_id, 0.0 AS refund_amount, o.order_ts + INTERVAL 3 DAY AS txn_ts,
+           100 + row_number() OVER (ORDER BY o.order_id) AS seq
+    FROM raw.orders o WHERE o.status = 'paid' AND o.order_id % 250 = 0
+),
+requests AS (SELECT * FROM refunded UNION ALL SELECT * FROM rejected),
+top_line AS (
+    SELECT order_id, line_no, quantity,
+           row_number() OVER (PARTITION BY order_id
+                              ORDER BY quantity * unit_price DESC, line_no) AS rn
+    FROM raw.order_items
+)
+SELECT cast(9000 + q.seq AS BIGINT) AS return_id, q.order_id, l.line_no,
+       CASE WHEN q.seq % 7 = 0 THEN l.quantity + 1 ELSE l.quantity END AS return_qty,
+       CASE q.seq % 4 WHEN 0 THEN 'damaged' WHEN 1 THEN 'wrong_item'
+            WHEN 2 THEN 'changed_mind' ELSE 'not_as_described' END      AS reason_code,
+       CASE WHEN q.seq &gt; 99 THEN 'rejected' ELSE 'approved' END         AS merchant_decision,
+       CASE WHEN q.seq % 3 = 0 THEN 'written_off' ELSE 'resellable' END AS unit_disposition,
+       cast(q.txn_ts AS TIMESTAMP) AS requested_ts, q.refund_amount
+FROM requests q JOIN top_line l ON l.order_id = q.order_id AND l.rn = 1;
+
+CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS
+SELECT return_id, order_id, line_no,
+       cast(return_qty AS INTEGER)     AS return_quantity,
+       lower(trim(reason_code))        AS return_reason,
+       lower(trim(merchant_decision))  AS return_status,
+       lower(trim(unit_disposition))   AS unit_disposition,
+       cast(requested_ts AS TIMESTAMP) AS requested_at,
+       round(refund_amount, 2)         AS refund_value
+FROM raw.returns;
+
+-- models/intermediate/int_returns_enriched.sql - the join staging is not allowed to do.
+CREATE OR REPLACE VIEW main_staging.int_returns_enriched AS
+SELECT r.return_id, r.order_id, r.line_no, r.return_quantity, r.return_reason,
+       r.return_status, r.unit_disposition, r.requested_at, r.refund_value,
+       oi.quantity   AS units_sold,
+       oi.net_amount AS line_net_amount,
+       oi.merchant_id, oi.product_id, o.user_id
+FROM main_staging.stg_bazaar__returns r
+JOIN main_staging.stg_bazaar__order_items oi
+  ON oi.order_id = r.order_id AND oi.line_no = r.line_no
+JOIN main_staging.stg_bazaar__orders o ON o.order_id = r.order_id;
+
+-- tests/assert_return_quantity_never_exceeds_sold.sql - zero rows means pass.
+SELECT return_id, order_id, line_no, return_quantity, units_sold
+FROM main_staging.int_returns_enriched
+WHERE return_quantity &gt; units_sold
+ORDER BY return_id;</pre>
+    </div>
+
+    <p class="lede"><strong>The trap.</strong> The instinct is a <code>CHECK</code> constraint, and it cannot work. A check constraint evaluates one row of one table; this rule compares a returns row against an order-items row, and no constraint in any warehouse can see across tables. It has to be a test - a query that must return zero rows - which is the moment the b7 mechanism stops feeling like a testing framework and starts feeling like the only place some business rules can live. On the seeded data it returns five rows, so this test would fail the build, which is exactly right: five impossible returns are in the source and somebody needs to know.</p>
+  </section>
+
+  <!-- ============ CHECKPOINT 3 ============ -->
+  <section class="section" id="cp3">
+    <div class="section-kicker">
+      <span class="klabel">Checkpoint 3 of 5 · 14 min · you build</span>
+      <h2>The dimension and the new fact <span class="tag demo">★ the decision that matters most</span></h2>
+    </div>
+    <p class="lede">One small dimension with a modelled group, and one new fact at return-line grain reusing four conformed dimensions unchanged. This is where the capstone is either right or quietly wrong for the next two years.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong><code>dim_return_reasons</code>:</strong> one row per reason code, with the human label, <code>reason_group</code> and <code>is_fulfilment_failure</code>. Surrogate key from the same <code>surrogate_key</code> macro every other dimension uses, so the pattern stays uniform.</p></div>
+      <div class="step"><p><strong><code>fct_returns</code>:</strong> grain is one requested return line. Key <code>return_line_sk</code>. <code>date_key</code> from <code>requested_at</code> - the return date, not the sale date. Dimension keys resolved with <code>LEFT JOIN</code> and coalesced to the unknown member <code>'-1'</code>, because an inner join here would silently drop a fact row.</p></div>
+      <div class="step"><p><strong>Keep the rejected returns in.</strong> Ship <code>return_status</code> and an <code>is_approved</code> flag. A rejected request is a business event, and dropping it makes the rejection rate unanswerable.</p></div>
+      <div class="step"><p><strong>Check the result.</strong> Forty return lines, forty distinct keys, 37 approved, and every dimension key resolved - no <code>'-1'</code> anywhere.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="40 return lines, 40 distinct keys, 37 approved, 4,688.49 of approved refund value, and zero unresolved dimension keys. The fact is at its own grain with its own date.">
+      <pre class="sql-src">CREATE OR REPLACE TABLE raw.returns AS
+WITH refunded AS (
+    SELECT order_id, abs(amount) AS refund_amount, txn_ts,
+           row_number() OVER (ORDER BY txn_id) AS seq
+    FROM raw.transactions WHERE status = 'refunded'
+),
+rejected AS (
+    SELECT o.order_id, 0.0 AS refund_amount, o.order_ts + INTERVAL 3 DAY AS txn_ts,
+           100 + row_number() OVER (ORDER BY o.order_id) AS seq
+    FROM raw.orders o WHERE o.status = 'paid' AND o.order_id % 250 = 0
+),
+requests AS (SELECT * FROM refunded UNION ALL SELECT * FROM rejected),
+top_line AS (
+    SELECT order_id, line_no, quantity,
+           row_number() OVER (PARTITION BY order_id
+                              ORDER BY quantity * unit_price DESC, line_no) AS rn
+    FROM raw.order_items
+)
+SELECT cast(9000 + q.seq AS BIGINT) AS return_id, q.order_id, l.line_no,
+       CASE WHEN q.seq % 7 = 0 THEN l.quantity + 1 ELSE l.quantity END AS return_qty,
+       CASE q.seq % 4 WHEN 0 THEN 'damaged' WHEN 1 THEN 'wrong_item'
+            WHEN 2 THEN 'changed_mind' ELSE 'not_as_described' END      AS reason_code,
+       CASE WHEN q.seq &gt; 99 THEN 'rejected' ELSE 'approved' END         AS merchant_decision,
+       CASE WHEN q.seq % 3 = 0 THEN 'written_off' ELSE 'resellable' END AS unit_disposition,
+       cast(q.txn_ts AS TIMESTAMP) AS requested_ts, q.refund_amount
+FROM requests q JOIN top_line l ON l.order_id = q.order_id AND l.rn = 1;
+
+CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS
+SELECT return_id, order_id, line_no,
+       cast(return_qty AS INTEGER)     AS return_quantity,
+       lower(trim(reason_code))        AS return_reason,
+       lower(trim(merchant_decision))  AS return_status,
+       lower(trim(unit_disposition))   AS unit_disposition,
+       cast(requested_ts AS TIMESTAMP) AS requested_at,
+       round(refund_amount, 2)         AS refund_value
+FROM raw.returns;
+
+CREATE OR REPLACE VIEW main_staging.int_returns_enriched AS
+SELECT r.return_id, r.order_id, r.line_no, r.return_quantity, r.return_reason,
+       r.return_status, r.unit_disposition, r.requested_at, r.refund_value,
+       oi.quantity AS units_sold, oi.net_amount AS line_net_amount,
+       oi.merchant_id, oi.product_id, o.user_id
+FROM main_staging.stg_bazaar__returns r
+JOIN main_staging.stg_bazaar__order_items oi
+  ON oi.order_id = r.order_id AND oi.line_no = r.line_no
+JOIN main_staging.stg_bazaar__orders o ON o.order_id = r.order_id;
+
+-- models/marts/dim_return_reasons.sql - four rows, one modelled grouping.
+CREATE OR REPLACE TABLE main_marts.dim_return_reasons AS
+WITH reasons(return_reason) AS (
+    VALUES ('damaged'), ('wrong_item'), ('changed_mind'), ('not_as_described')
+)
+SELECT md5(concat_ws('|', coalesce(cast(return_reason AS varchar), '_null_')))
+                                                  AS return_reason_sk,
+       return_reason,
+       CASE WHEN return_reason IN ('damaged', 'wrong_item', 'not_as_described')
+            THEN 'merchant controllable' ELSE 'shopper choice' END AS reason_group,
+       return_reason IN ('damaged', 'wrong_item') AS is_fulfilment_failure
+FROM reasons;
+
+-- models/marts/fct_returns.sql - GRAIN: one requested return line.
+CREATE OR REPLACE TABLE main_marts.fct_returns AS
+WITH lines AS (SELECT * FROM main_staging.int_returns_enriched)
+SELECT md5(concat_ws('|', coalesce(cast(lines.return_id AS varchar), '_null_'),
+                          coalesce(cast(lines.line_no AS varchar), '_null_')))
+                                                AS return_line_sk,
+       coalesce(d.date_key, '-1')               AS date_key,
+       coalesce(rr.return_reason_sk, '-1')      AS return_reason_sk,
+       coalesce(dm.merchant_sk, '-1')           AS merchant_sk,
+       coalesce(dp.product_sk, '-1')            AS product_sk,
+       coalesce(du.user_sk, '-1')               AS user_sk,
+       lines.return_id, lines.order_id, lines.line_no,
+       lines.return_quantity                    AS units_returned,
+       lines.refund_value,
+       lines.return_status,
+       lines.return_status = 'approved'         AS is_approved,
+       lines.unit_disposition = 'resellable'    AS is_resellable
+FROM lines
+LEFT JOIN main_marts.dim_dates          d  ON d.date_day = cast(lines.requested_at AS date)
+LEFT JOIN main_marts.dim_return_reasons rr ON rr.return_reason = lines.return_reason
+LEFT JOIN main_marts.dim_merchants      dm ON dm.merchant_id = lines.merchant_id
+                                          AND dm.is_current
+LEFT JOIN main_marts.dim_products       dp ON dp.product_id = lines.product_id
+LEFT JOIN main_marts.dim_users          du ON du.user_id = lines.user_id;
+
+SELECT count(*)                                                    AS return_lines,
+       count(DISTINCT return_line_sk)                              AS distinct_keys,
+       sum(CASE WHEN is_approved THEN 1 ELSE 0 END)                AS approved,
+       round(sum(CASE WHEN is_approved THEN refund_value ELSE 0 END), 2)
+                                                                   AS approved_refund_value,
+       sum(CASE WHEN merchant_sk = '-1' OR return_reason_sk = '-1'
+                THEN 1 ELSE 0 END)                                 AS unresolved_keys
+FROM main_marts.fct_returns;</pre>
+    </div>
+
+    <p class="lede"><strong>The trap.</strong> Everything about this checkpoint is easier if you skip it and add <code>units_returned</code> to <code>fct_order_items</code> instead. It builds, it passes, and it destroys the metric: on a two-line order with one returned line you get one row with a return and one without, so <code>return_rate</code> fans out and every consumer has to know which rows belong in the denominator. A return is a different grain, on a different date, from a population that includes rejections. Three reasons, each sufficient. New fact.</p>
+  </section>
+
+  <!-- ============ CHECKPOINT 4 ============ -->
+  <section class="section" id="cp4">
+    <div class="section-kicker">
+      <span class="klabel">Checkpoint 4 of 5 · 8 min · you build</span>
+      <h2>Three tests, two kinds <span class="tag demo">★ shape and meaning</span></h2>
+    </div>
+    <p class="lede">Two generic tests in the model YAML, and one singular test in <code>tests/</code> that asserts something no generic test can express: that the money in your new fact agrees with the money already in the payments fact.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Generic 1 - the key.</strong> <code>unique</code> and <code>not_null</code> on <code>return_line_sk</code>. This is the grain claim, enforced. If it fails, every SUM over the fact is wrong and nothing else you test matters.</p></div>
+      <div class="step"><p><strong>Generic 2 - the enum.</strong> <code>accepted_values</code> on <code>return_reason</code> with the four codes, plus <code>relationships</code> from <code>fct_returns.return_reason_sk</code> to the dimension. A fifth reason code appearing upstream is normal; a fifth reason code appearing while every report filters on four is a silent exclusion.</p></div>
+      <div class="step"><p><strong>Singular - the money.</strong> Approved refund value in <code>fct_returns</code> must equal the refund total in <code>fct_transactions</code>, to the cent. Same shape as <code>assert_star_reconciles_to_source.sql</code>: a query that must return zero rows.</p></div>
+      <div class="step"><p><strong>Read the result.</strong> Three PASS lines. Then break one on purpose - change the <code>is_approved</code> filter in the singular test - and watch which of the three notices.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Three PASS. The singular test is the one that matters: 4,688.49 of approved refund value against 4,688.49 of refunds in the payments fact, agreeing to the cent.">
+      <pre class="sql-src">CREATE OR REPLACE TABLE raw.returns AS
+WITH refunded AS (
+    SELECT order_id, abs(amount) AS refund_amount, txn_ts,
+           row_number() OVER (ORDER BY txn_id) AS seq
+    FROM raw.transactions WHERE status = 'refunded'
+),
+rejected AS (
+    SELECT o.order_id, 0.0 AS refund_amount, o.order_ts + INTERVAL 3 DAY AS txn_ts,
+           100 + row_number() OVER (ORDER BY o.order_id) AS seq
+    FROM raw.orders o WHERE o.status = 'paid' AND o.order_id % 250 = 0
+),
+requests AS (SELECT * FROM refunded UNION ALL SELECT * FROM rejected),
+top_line AS (
+    SELECT order_id, line_no, quantity,
+           row_number() OVER (PARTITION BY order_id
+                              ORDER BY quantity * unit_price DESC, line_no) AS rn
+    FROM raw.order_items
+)
+SELECT cast(9000 + q.seq AS BIGINT) AS return_id, q.order_id, l.line_no,
+       CASE WHEN q.seq % 7 = 0 THEN l.quantity + 1 ELSE l.quantity END AS return_qty,
+       CASE q.seq % 4 WHEN 0 THEN 'damaged' WHEN 1 THEN 'wrong_item'
+            WHEN 2 THEN 'changed_mind' ELSE 'not_as_described' END      AS reason_code,
+       CASE WHEN q.seq &gt; 99 THEN 'rejected' ELSE 'approved' END         AS merchant_decision,
+       CASE WHEN q.seq % 3 = 0 THEN 'written_off' ELSE 'resellable' END AS unit_disposition,
+       cast(q.txn_ts AS TIMESTAMP) AS requested_ts, q.refund_amount
+FROM requests q JOIN top_line l ON l.order_id = q.order_id AND l.rn = 1;
+
+CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS
+SELECT return_id, order_id, line_no,
+       cast(return_qty AS INTEGER)     AS return_quantity,
+       lower(trim(reason_code))        AS return_reason,
+       lower(trim(merchant_decision))  AS return_status,
+       lower(trim(unit_disposition))   AS unit_disposition,
+       cast(requested_ts AS TIMESTAMP) AS requested_at,
+       round(refund_amount, 2)         AS refund_value
+FROM raw.returns;
+
+CREATE OR REPLACE VIEW main_staging.int_returns_enriched AS
+SELECT r.return_id, r.order_id, r.line_no, r.return_quantity, r.return_reason,
+       r.return_status, r.unit_disposition, r.requested_at, r.refund_value,
+       oi.quantity AS units_sold, oi.net_amount AS line_net_amount,
+       oi.merchant_id, oi.product_id, o.user_id
+FROM main_staging.stg_bazaar__returns r
+JOIN main_staging.stg_bazaar__order_items oi
+  ON oi.order_id = r.order_id AND oi.line_no = r.line_no
+JOIN main_staging.stg_bazaar__orders o ON o.order_id = r.order_id;
+
+CREATE OR REPLACE TABLE main_marts.dim_return_reasons AS
+WITH reasons(return_reason) AS (
+    VALUES ('damaged'), ('wrong_item'), ('changed_mind'), ('not_as_described')
+)
+SELECT md5(concat_ws('|', coalesce(cast(return_reason AS varchar), '_null_')))
+                                                  AS return_reason_sk,
+       return_reason,
+       CASE WHEN return_reason IN ('damaged', 'wrong_item', 'not_as_described')
+            THEN 'merchant controllable' ELSE 'shopper choice' END AS reason_group,
+       return_reason IN ('damaged', 'wrong_item') AS is_fulfilment_failure
+FROM reasons;
+
+CREATE OR REPLACE TABLE main_marts.fct_returns AS
+WITH lines AS (SELECT * FROM main_staging.int_returns_enriched)
+SELECT md5(concat_ws('|', coalesce(cast(lines.return_id AS varchar), '_null_'),
+                          coalesce(cast(lines.line_no AS varchar), '_null_')))
+                                             AS return_line_sk,
+       coalesce(d.date_key, '-1')            AS date_key,
+       coalesce(rr.return_reason_sk, '-1')   AS return_reason_sk,
+       coalesce(dm.merchant_sk, '-1')        AS merchant_sk,
+       coalesce(dp.product_sk, '-1')         AS product_sk,
+       coalesce(du.user_sk, '-1')            AS user_sk,
+       lines.return_id, lines.order_id, lines.line_no,
+       lines.return_quantity                 AS units_returned,
+       lines.refund_value, lines.return_status,
+       lines.return_status = 'approved'      AS is_approved,
+       lines.unit_disposition = 'resellable' AS is_resellable
+FROM lines
+LEFT JOIN main_marts.dim_dates          d  ON d.date_day = cast(lines.requested_at AS date)
+LEFT JOIN main_marts.dim_return_reasons rr ON rr.return_reason = lines.return_reason
+LEFT JOIN main_marts.dim_merchants      dm ON dm.merchant_id = lines.merchant_id
+                                          AND dm.is_current
+LEFT JOIN main_marts.dim_products       dp ON dp.product_id = lines.product_id
+LEFT JOIN main_marts.dim_users          du ON du.user_id = lines.user_id;
+
+-- The three tests, run as one scorecard. A dbt test passes on zero rows.
+WITH t1 AS (
+    SELECT 'generic - unique(return_line_sk)' AS test_name, count(*) AS failing_rows
+    FROM (SELECT return_line_sk FROM main_marts.fct_returns
+          GROUP BY 1 HAVING count(*) &gt; 1)
+),
+t2 AS (
+    SELECT 'generic - accepted_values(return_reason)', count(*)
+    FROM main_marts.fct_returns WHERE return_reason_sk = '-1'
+),
+t3 AS (
+    SELECT 'singular - refunds reconcile to fct_transactions', count(*)
+    FROM (
+        SELECT round(sum(CASE WHEN r.is_approved THEN r.refund_value ELSE 0 END), 2)
+                   AS returns_side,
+               (SELECT round(sum(-t.attempt_amount), 2)
+                  FROM main_marts.fct_transactions t WHERE t.is_refund = 1)
+                   AS payments_side
+        FROM main_marts.fct_returns r
+    ) WHERE abs(returns_side - payments_side) &gt; 0.01
+)
+SELECT test_name, failing_rows,
+       CASE WHEN failing_rows = 0 THEN 'PASS' ELSE 'FAIL' END AS result
+FROM (SELECT * FROM t1 UNION ALL SELECT * FROM t2 UNION ALL SELECT * FROM t3)
+ORDER BY test_name;</pre>
+    </div>
+
+    <p class="lede"><strong>The trap.</strong> Two generic tests feel like a tested model, and they are the cheap half. Only the singular test notices if somebody later filters rejected returns out at staging, or flips the refund sign, or starts counting rejected requests in the refund total - all of which leave the shape immaculate. This is the b7 lesson arriving in your own code: generic tests caught 4 of 6 breakages, generic plus singular caught 6 of 6, and the two they needed help with were both cases where the meaning moved and the shape did not.</p>
+  </section>
+
+  <!-- ============ CHECKPOINT 5 ============ -->
+  <section class="section" id="cp5">
+    <div class="section-kicker">
+      <span class="klabel">Checkpoint 5 of 5 · 12 min · you build</span>
+      <h2>The mart and its contract <span class="tag demo">★ the denominator, and the promise</span></h2>
+    </div>
+    <p class="lede">A returns number is meaningless without what it is a share of. The mart puts returns beside sold units at merchant-day grain, ships the rate as two additive parts, and then makes its own shape a promise.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Aggregate each fact separately.</strong> Sold units and revenue from <code>fct_order_items</code> to merchant-day; returns, returned units and refund value from <code>fct_returns</code> to merchant-day. Never join the two facts - b5's rule, b8's mart, your model now.</p></div>
+      <div class="step"><p><strong>Union the grains before joining.</strong> A return lands on the day it was requested, which is often not a day that merchant sold anything. Start from the union of both grains and left join both sides, or you will silently drop returns.</p></div>
+      <div class="step"><p><strong>Ship the rate as parts.</strong> <code>return_rate_numerator</code> is returned units, <code>return_rate_denominator</code> is sold units. No <code>return_rate</code> column, for the same reason <code>mart_merchant_daily</code> has no <code>aov</code> column.</p></div>
+      <div class="step"><p><strong>Then put a contract on it,</strong> because this mart is what a merchant scorecard will read. The second box is the contract check from b9, applied to your new model.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Return rate per merchant, from the mart. M11 Orchid Grocer 8 units returned on 182 sold - 4.4%. Every rate computed from two additive sums, at whatever grain the reader asks for.">
+      <pre class="sql-src">CREATE OR REPLACE TABLE raw.returns AS
+WITH refunded AS (
+    SELECT order_id, abs(amount) AS refund_amount, txn_ts,
+           row_number() OVER (ORDER BY txn_id) AS seq
+    FROM raw.transactions WHERE status = 'refunded'
+),
+rejected AS (
+    SELECT o.order_id, 0.0 AS refund_amount, o.order_ts + INTERVAL 3 DAY AS txn_ts,
+           100 + row_number() OVER (ORDER BY o.order_id) AS seq
+    FROM raw.orders o WHERE o.status = 'paid' AND o.order_id % 250 = 0
+),
+requests AS (SELECT * FROM refunded UNION ALL SELECT * FROM rejected),
+top_line AS (
+    SELECT order_id, line_no, quantity,
+           row_number() OVER (PARTITION BY order_id
+                              ORDER BY quantity * unit_price DESC, line_no) AS rn
+    FROM raw.order_items
+)
+SELECT cast(9000 + q.seq AS BIGINT) AS return_id, q.order_id, l.line_no,
+       CASE WHEN q.seq % 7 = 0 THEN l.quantity + 1 ELSE l.quantity END AS return_qty,
+       CASE q.seq % 4 WHEN 0 THEN 'damaged' WHEN 1 THEN 'wrong_item'
+            WHEN 2 THEN 'changed_mind' ELSE 'not_as_described' END      AS reason_code,
+       CASE WHEN q.seq &gt; 99 THEN 'rejected' ELSE 'approved' END         AS merchant_decision,
+       CASE WHEN q.seq % 3 = 0 THEN 'written_off' ELSE 'resellable' END AS unit_disposition,
+       cast(q.txn_ts AS TIMESTAMP) AS requested_ts, q.refund_amount
+FROM requests q JOIN top_line l ON l.order_id = q.order_id AND l.rn = 1;
+
+CREATE OR REPLACE VIEW main_staging.stg_bazaar__returns AS
+SELECT return_id, order_id, line_no,
+       cast(return_qty AS INTEGER)     AS return_quantity,
+       lower(trim(reason_code))        AS return_reason,
+       lower(trim(merchant_decision))  AS return_status,
+       lower(trim(unit_disposition))   AS unit_disposition,
+       cast(requested_ts AS TIMESTAMP) AS requested_at,
+       round(refund_amount, 2)         AS refund_value
+FROM raw.returns;
+
+CREATE OR REPLACE VIEW main_staging.int_returns_enriched AS
+SELECT r.return_id, r.order_id, r.line_no, r.return_quantity, r.return_reason,
+       r.return_status, r.unit_disposition, r.requested_at, r.refund_value,
+       oi.quantity AS units_sold, oi.net_amount AS line_net_amount,
+       oi.merchant_id, oi.product_id, o.user_id
+FROM main_staging.stg_bazaar__returns r
+JOIN main_staging.stg_bazaar__order_items oi
+  ON oi.order_id = r.order_id AND oi.line_no = r.line_no
+JOIN main_staging.stg_bazaar__orders o ON o.order_id = r.order_id;
+
+CREATE OR REPLACE TABLE main_marts.dim_return_reasons AS
+WITH reasons(return_reason) AS (
+    VALUES ('damaged'), ('wrong_item'), ('changed_mind'), ('not_as_described')
+)
+SELECT md5(concat_ws('|', coalesce(cast(return_reason AS varchar), '_null_')))
+                                                  AS return_reason_sk,
+       return_reason,
+       CASE WHEN return_reason IN ('damaged', 'wrong_item', 'not_as_described')
+            THEN 'merchant controllable' ELSE 'shopper choice' END AS reason_group,
+       return_reason IN ('damaged', 'wrong_item') AS is_fulfilment_failure
+FROM reasons;
+
+CREATE OR REPLACE TABLE main_marts.fct_returns AS
+WITH lines AS (SELECT * FROM main_staging.int_returns_enriched)
+SELECT md5(concat_ws('|', coalesce(cast(lines.return_id AS varchar), '_null_'),
+                          coalesce(cast(lines.line_no AS varchar), '_null_')))
+                                             AS return_line_sk,
+       coalesce(d.date_key, '-1')            AS date_key,
+       coalesce(rr.return_reason_sk, '-1')   AS return_reason_sk,
+       coalesce(dm.merchant_sk, '-1')        AS merchant_sk,
+       coalesce(dp.product_sk, '-1')         AS product_sk,
+       coalesce(du.user_sk, '-1')            AS user_sk,
+       lines.return_id, lines.order_id, lines.line_no,
+       lines.return_quantity                 AS units_returned,
+       lines.refund_value, lines.return_status,
+       lines.return_status = 'approved'      AS is_approved,
+       lines.unit_disposition = 'resellable' AS is_resellable
+FROM lines
+LEFT JOIN main_marts.dim_dates          d  ON d.date_day = cast(lines.requested_at AS date)
+LEFT JOIN main_marts.dim_return_reasons rr ON rr.return_reason = lines.return_reason
+LEFT JOIN main_marts.dim_merchants      dm ON dm.merchant_id = lines.merchant_id
+                                          AND dm.is_current
+LEFT JOIN main_marts.dim_products       dp ON dp.product_id = lines.product_id
+LEFT JOIN main_marts.dim_users          du ON du.user_id = lines.user_id;
+
+-- models/marts/mart_returns_daily.sql - GRAIN: one merchant per day.
+-- Two facts, aggregated separately, then joined on the conformed grain. Never joined directly.
+CREATE OR REPLACE TABLE main_marts.mart_returns_daily AS
+WITH sold AS (
+    SELECT d.date_day AS activity_date, f.merchant_sk,
+           sum(f.units) AS units_sold, round(sum(f.net_amount), 2) AS net_revenue
+    FROM main_marts.fct_order_items f
+    JOIN main_marts.dim_dates d ON d.date_key = f.date_key
+    WHERE f.is_settled
+    GROUP BY 1, 2
+),
+returned AS (
+    SELECT d.date_day AS activity_date, r.merchant_sk,
+           count(*) AS returns_requested,
+           sum(CASE WHEN r.is_approved THEN r.units_returned ELSE 0 END) AS units_returned,
+           round(sum(CASE WHEN r.is_approved THEN r.refund_value ELSE 0 END), 2)
+               AS refund_value
+    FROM main_marts.fct_returns r
+    JOIN main_marts.dim_dates d ON d.date_key = r.date_key
+    GROUP BY 1, 2
+),
+grain AS (
+    SELECT activity_date, merchant_sk FROM sold
+    UNION
+    SELECT activity_date, merchant_sk FROM returned
+)
+SELECT g.activity_date,
+       m.merchant_id,
+       m.merchant_name,
+       coalesce(s.units_sold, 0)        AS units_sold,
+       coalesce(s.net_revenue, 0)       AS net_revenue,
+       coalesce(x.returns_requested, 0) AS returns_requested,
+       coalesce(x.units_returned, 0)    AS units_returned,
+       coalesce(x.refund_value, 0)      AS refund_value,
+       coalesce(x.units_returned, 0)    AS return_rate_numerator,
+       coalesce(s.units_sold, 0)        AS return_rate_denominator
+FROM grain g
+JOIN main_marts.dim_merchants m ON m.merchant_sk = g.merchant_sk
+LEFT JOIN sold     s ON s.activity_date = g.activity_date AND s.merchant_sk = g.merchant_sk
+LEFT JOIN returned x ON x.activity_date = g.activity_date AND x.merchant_sk = g.merchant_sk;
+
+SELECT merchant_id, merchant_name,
+       sum(units_sold)            AS units_sold,
+       sum(return_rate_numerator) AS units_returned,
+       round(100.0 * sum(return_rate_numerator) / sum(return_rate_denominator), 2)
+                                  AS return_rate_pct,
+       round(sum(refund_value), 2) AS refund_value
+FROM main_marts.mart_returns_daily
+GROUP BY 1, 2
+ORDER BY return_rate_pct DESC
+LIMIT 8;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Seven promised columns, seven matches, contract satisfied. Change a promised type to BIGINT and re-run: that is the error dbt would raise before the table was ever created.">
+      <pre class="sql-src">-- A contract checks SHAPE, not data - so this box deliberately builds only the
+-- shape. Every box starts from a clean database, and the returns columns are
+-- cast placeholders here to prove the point: dbt's contract check would be
+-- identical whether these columns hold 40 returns or none.
+CREATE OR REPLACE TABLE main_marts.mart_returns_daily AS
+WITH sold AS (
+    SELECT d.date_day AS activity_date, f.merchant_sk,
+           sum(f.units) AS units_sold, round(sum(f.net_amount), 2) AS net_revenue
+    FROM main_marts.fct_order_items f
+    JOIN main_marts.dim_dates d ON d.date_key = f.date_key
+    WHERE f.is_settled
+    GROUP BY 1, 2
+)
+SELECT s.activity_date,
+       m.merchant_id,
+       m.merchant_name,
+       s.units_sold,
+       s.net_revenue,
+       cast(0 AS BIGINT)               AS returns_requested,
+       cast(0 AS HUGEINT)              AS units_returned,
+       cast(0.0 AS DOUBLE)             AS refund_value,
+       cast(0 AS HUGEINT)              AS return_rate_numerator,
+       s.units_sold                    AS return_rate_denominator
+FROM sold s
+JOIN main_marts.dim_merchants m ON m.merchant_sk = s.merchant_sk;
+
+-- The contract, checked the way b9 checked it: promised shape versus built shape.
+WITH contract(column_name, data_type) AS (
+    VALUES ('activity_date',           'DATE'),
+           ('merchant_id',             'VARCHAR'),
+           ('units_sold',              'HUGEINT'),
+           ('units_returned',          'HUGEINT'),
+           ('refund_value',            'DOUBLE'),
+           ('return_rate_numerator',   'HUGEINT'),
+           ('return_rate_denominator', 'HUGEINT')
+),
+built AS (
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'main_marts' AND table_name = 'mart_returns_daily'
+)
+SELECT c.column_name,
+       c.data_type AS promised_type,
+       coalesce(b.data_type, 'not built') AS actual_type,
+       CASE WHEN b.column_name IS NULL      THEN 'CONTRACT ERROR - column missing'
+            WHEN b.data_type &lt;&gt; c.data_type THEN 'CONTRACT ERROR - type changed'
+            ELSE 'ok' END AS build_verdict
+FROM contract c
+LEFT JOIN built b ON b.column_name = c.column_name
+ORDER BY build_verdict, c.column_name;</pre>
+    </div>
+
+    <p class="lede"><strong>The trap.</strong> One <code>return_rate</code> column would pass every test you wrote and be wrong the first time somebody groups by month. Ship the parts. And note the second thing this checkpoint quietly proved: on the seeded data the mart has 614 merchant-day rows of which 14 have zero sold units, because those merchants had a return on a day they sold nothing. If you had built the mart by starting from sold and left-joining returns, those 14 rows and their refund value would have vanished without a single test failing.</p>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Returns is the subject area that exposes whether a warehouse was built or accumulated.</strong> In a warehouse that was accumulated, returns arrive as three columns on the orders table because that was the fastest change, and eighteen months later nobody can answer "what is our return rate by reason group" without a bespoke query and a caveat. In a warehouse that was built, returns is a new fact, one small dimension, four reused conformed dimensions, three tests and one mart - about 120 lines of SQL, reviewed in a pull request, and the question is a two-line group-by forever after. The difference is not effort. It is one decision at checkpoint 3, made in ten minutes, by somebody who knew what grain meant.</p>
+    </div>
+  </section>
+
+  <!-- ============ ACCEPTANCE ============ -->
+  <section class="section" id="accept">
+    <div class="section-kicker">
+      <span class="klabel">The finish line · 6 min</span>
+      <h2>Acceptance checklist, and what green means</h2>
+    </div>
+    <p class="lede">Run <code>dbt build</code> in your repo and check every line below. Green is not "no red text" - it is every model built, every test passing, and <strong>zero SKIPs</strong>. A SKIP means something upstream failed and the thing you were looking at was never rebuilt, which is the most dangerous kind of pass.</p>
+
+    <table class="clean">
+      <thead><tr><th>#</th><th>Deliverable</th><th>How you know it is done</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>returns</code> declared in the sources YAML</td><td><code>dbt ls --resource-type source</code> lists 9, not 8. No model contains the string <code>raw.returns</code>.</td></tr>
+        <tr><td>2</td><td><code>stg_bazaar__returns.sql</code>, four jobs, no joins</td><td>The file contains no <code>join</code>. It has <code>unique</code> and <code>not_null</code> on <code>return_id</code> and <code>accepted_values</code> on <code>return_reason</code>.</td></tr>
+        <tr><td>3</td><td><code>int_returns_enriched.sql</code>, ephemeral</td><td><code>dbt ls</code> shows it; <code>information_schema</code> does not. It carries <code>units_sold</code> so checkpoint 2's test is possible.</td></tr>
+        <tr><td>4</td><td><code>dim_return_reasons</code> with <code>reason_group</code></td><td>Four rows. <code>reason_group</code> appears in exactly one file. <code>accepted_values</code> on the code.</td></tr>
+        <tr><td>5</td><td><code>fct_returns</code> at return-line grain</td><td>40 rows, 40 distinct <code>return_line_sk</code>. <code>date_key</code> came from <code>requested_at</code>. Rejected returns are present with <code>is_approved = false</code>.</td></tr>
+        <tr><td>6</td><td><code>fct_order_items</code> unchanged</td><td><code>git diff</code> on that file is empty. This is the checkpoint-3 trap, verified.</td></tr>
+        <tr><td>7</td><td>Three new tests, two kinds</td><td>Two generic in the YAML, one singular <code>.sql</code> in <code>tests/</code>. The singular one reconciles refund value against <code>fct_transactions</code> to the cent.</td></tr>
+        <tr><td>8</td><td>A mart at merchant-day grain</td><td>Returns and refund value sit beside <code>units_sold</code>. There is no <code>return_rate</code> column, only its numerator and denominator.</td></tr>
+        <tr><td>9</td><td>A contract on the new mart</td><td><code>contract: enforced: true</code> plus a <code>data_type</code> on every column. Rename one column on a branch and confirm the build fails.</td></tr>
+        <tr><td>10</td><td><code>dbt build</code> green</td><td>Models built, all tests PASS, <strong>SKIP=0</strong>, ERROR=0. The baseline before your work was PASS=121, WARN=0, ERROR=0 in 1.22s.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="lede">One honest note about the seeded data: checkpoint 2's test finds five returns whose quantity exceeds the quantity sold, so on that data the build is <em>correctly</em> red. That is the test doing its job. In your repo you get to choose the professional response - fix the source, or downgrade the test to <code>severity: warn</code> with a comment saying why and who is chasing it. Silently deleting the test is the one wrong answer, and it is the most common one.</p>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 45-60 min total</span></h2>
+    </div>
+    <ul>
+      <li>Finish the capstone in the repo rather than the browser, and get <code>dbt build</code> to SKIP=0. Then run <code>dbt docs generate</code> and look at your new subject area in the lineage - nobody drew those edges, and they appeared because you wrote <code>ref()</code>.</li>
+      <li>Add the exposure that reads your new mart: a merchant returns scorecard, with an owner. Then run <code>dbt build --select +exposure:&lt;name&gt;</code> and check that it selects your whole returns chain and nothing else.</li>
+      <li>Add a <code>strategy: check</code> snapshot on the returns source watching <code>merchant_decision</code>, so the history of approve-versus-reject survives an in-place update. Compare it with <code>merchants_snapshot</code> - same pattern, different column.</li>
+      <li>Do the same five checkpoints for a subject area in your own warehouse that arrived as columns on an existing fact. Write the grain sentence first, starting with "one row per". If the honest answer is a different grain, you have found a real bug with a business impact you can name.</li>
+      <li>Write the four-sentence version of this capstone for whoever reviews your pull requests: the grain, the date, the population, the denominator. Those four sentences are the review checklist for every new fact anybody on your team ever adds.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page exercises the whole course, so it covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - sources, models, materializations, ephemeral, generic and singular tests, contracts, node selection</span><span class="note">All five checkpoints · every mechanism the previous nine sessions taught, applied once, unaided</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Community layering conventions - source, staging, intermediate, marts, one staging model per source table</span><span class="note">Checkpoints 1-3 · including the reason a join in staging is a bug even when it works</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - snapshots and incremental models as the next decisions</span><span class="note">Part 2 self-study · why neither is required here, and what would trigger each one</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - grain, a new fact versus a wider fact, conformed dimension reuse, additivity</span><span class="note">Recap only for the models being implemented · the modeling course is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Scheduling the returns build, and extracting the returns table in the first place</span><span class="note">Out of scope by design - orchestration is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a> and extraction is <a href="https://phoebefu6.github.io/learn-data-engineering-with-phoebe/">learn-data-engineering</a></span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Why do returns become <code>fct_returns</code> rather than three columns on <code>fct_order_items</code>?</p>
+      <button class="qopt" type="button">A · The sales fact is already too wide</button>
+      <button class="qopt" type="button">B · Returns need their own dimension, and dimensions need their own fact</button>
+      <button class="qopt" type="button">C · A return is a different grain, on a different date, from a population that includes rejections - and attaching it to the sales fact makes <code>return_rate</code> fan out and stop being summable</button>
+      <p class="qwhy">Three independent reasons, each sufficient on its own. The fan-out is the one that bites: on a two-line order with one returned line you get one row with a return and one without, so every consumer has to know which rows belong in the denominator.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">2 · A returned quantity can exceed the quantity sold on that line. Where does that rule belong?</p>
+      <button class="qopt" type="button">A · A <code>CHECK</code> constraint on the returns model, enforced by the warehouse</button>
+      <button class="qopt" type="button">B · A test - a query that must return zero rows - because the rule compares two tables and no constraint can see across tables</button>
+      <button class="qopt" type="button">C · Application validation, so it never reaches the warehouse</button>
+      <p class="qwhy">A check constraint evaluates one row of one table. This rule needs a returns row and an order-items row at the same time, which only a query can do. It is also why the intermediate model carries <code>units_sold</code> it does not otherwise need.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · <code>dbt build</code> finishes with no ERROR but reports SKIP=4. Are you done?</p>
+      <button class="qopt" type="button">A · No - a SKIP means something upstream failed, so those four nodes were never rebuilt and are sitting on stale data</button>
+      <button class="qopt" type="button">B · Yes - SKIP is not an error, so the build succeeded</button>
+      <button class="qopt" type="button">C · Yes, as long as the four skipped nodes are not marts</button>
+      <p class="qwhy">Green means models built, all tests passing and SKIP=0. A skipped node is the most dangerous kind of pass, because the object still exists and still answers queries - with yesterday's numbers and today's timestamp on the dashboard.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>The whole builder track, on one card <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>b1-b2 · What dbt is</b><span>Compiles SELECTs into tables and views, in dependency order, with tests. It does not extract, load, schedule or design. Materialization per layer is one config block.</span></div>
+      <div class="cheat-item"><b>b3 · Sources and staging</b><span>Declare each raw table once. One staging model each: rename, recast, light clean, no joins. Test the enums where they enter.</span></div>
+      <div class="cheat-item"><b>b4 · ref() and the DAG</b><span>Never write a table name. 32 nodes, 47 edges, derived. <code>model+</code> downstream, <code>+model</code> upstream, <code>state:modified+</code> for CI.</span></div>
+      <div class="cheat-item"><b>b5 · Intermediate models</b><span>The joins staging is not allowed to do, ephemeral so nothing materializes. Aggregate before joining, or revenue fans out.</span></div>
+      <div class="cheat-item"><b>b6 · Dimensions, facts, snapshots</b><span>Deterministic surrogate keys, LEFT JOIN plus an unknown member so no fact row disappears, and <code>strategy: check</code> for history a source overwrites.</span></div>
+      <div class="cheat-item"><b>b7 · Tests</b><span>A test is a query that must return zero rows. Generic catches shape (4 of 6 breakages), singular catches meaning (6 of 6). Noise costs trust.</span></div>
+      <div class="cheat-item"><b>b8 · Marts</b><span>The star pre-aggregated to the grain a question set is asked at. Three grains, three marts. Never join two facts: 111,906.48, not 121,002.81. Ratios ship as parts.</span></div>
+      <div class="cheat-item"><b>b9-b10 · Ship it</b><span>Contracts check shape, exposures name consumers, docs are data, CI tests <code>state:modified+</code>. Green means SKIP=0. dbt does not schedule itself - that is learn-dataops.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 10 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span>That is the whole track - you have rebuilt a warehouse as a dbt project and extended it alone. dbt still does not schedule itself, so the next course is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops ↗</a>. &nbsp;·&nbsp; <a href="b9-contracts-docs-ci.html">← Previous: Contracts, docs and deployment</a> &nbsp;·&nbsp; <a href="../index.html">← All sessions</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

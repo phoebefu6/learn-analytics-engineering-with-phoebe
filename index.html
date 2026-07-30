@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>learn analytics engineering with phoebe - the same warehouse, as a dbt project</title>
+<link rel="stylesheet" href="assets/style.css?v=1">
+<style>
+  .stats-row { display: flex; gap: 2.4rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 2.1rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .72rem; opacity: .85; text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+
+  .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .course-card {
+    border: 1px solid var(--hairline);
+    border-top: 4px solid var(--diff, var(--indigo));
+    border-radius: var(--radius);
+    padding: 1.2rem 1.3rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    text-decoration: none;
+    color: var(--ink);
+    background: #fff;
+    transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+    position: relative;
+  }
+  .course-card:hover { border-color: var(--indigo-soft); border-top-color: var(--diff, var(--indigo)); box-shadow: 0 8px 28px rgba(217,78,36,.18); transform: translateY(-3px); }
+  .course-card .cicon { font-size: 1.7rem; line-height: 1; }
+  .course-card .cnum { font-size: .72rem; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .1em; }
+  .course-card h3 { font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+  .course-card p { font-size: .85rem; color: var(--muted); flex: 1; }
+  .course-card .meta { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  .diff-legend { display: flex; gap: 1rem; margin-top: 1.6rem; font-size: .74rem; color: var(--muted); font-weight: 600; flex-wrap: wrap; }
+  .diff-legend i { display: inline-block; width: .85rem; height: .35rem; border-radius: 999px; margin-right: .35rem; vertical-align: middle; }
+
+  .prereq-line { margin-top: 1.4rem; font-size: .85rem; color: var(--muted); border-left: 3px solid var(--amber); padding: .5rem .9rem; background: var(--indigo-50); border-radius: 0 var(--radius) var(--radius) 0; }
+  .prereq-line a { color: var(--indigo); font-weight: 700; }
+  .sources-line { margin-top: .8rem; font-size: .8rem; color: var(--muted); }
+
+  .ships { margin-top: 1.6rem; border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
+  .ships h3 { font-size: .95rem; font-weight: 800; padding: .7rem 1rem; background: var(--indigo-deep); color: #fff; }
+  .ships-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .8rem; padding: 1rem; background: var(--paper); }
+  .ships-col b { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--indigo); margin-bottom: .3rem; }
+  .ships-col code { display: block; font-size: .78rem; color: var(--ink); line-height: 1.9; }
+
+  .paths { margin-top: 2.6rem; }
+  .paths h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .3rem; }
+  .paths .plede { color: var(--muted); font-size: .92rem; margin-bottom: .8rem; }
+  .path { display: flex; gap: .55rem; align-items: center; padding: .75rem 0; border-bottom: .5px solid var(--hairline); flex-wrap: wrap; }
+  .path:last-child { border-bottom: none; }
+  .path b { min-width: 15.5rem; font-size: .9rem; }
+  .path .pstep { background: var(--indigo-50); color: var(--indigo); border-radius: 999px; padding: .16rem .68rem; font-weight: 700; font-size: .8rem; text-decoration: none; transition: all .12s ease; }
+  .path .pstep:hover { background: var(--indigo); color: #fff; }
+  .path .parr { color: var(--faint); font-weight: 700; }
+
+  .mm-section { margin-top: 1.6rem; }
+  .mm-section h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .2rem; }
+  .mm-section .mm-lede { color: var(--muted); font-size: .92rem; margin-bottom: .4rem; }
+  .mm-wrap { border: 1px solid var(--hairline); border-radius: var(--radius); background: linear-gradient(180deg,#fff,#FDF0EB); padding: .6rem; overflow-x: auto; }
+  .mm-svg { width: 100%; height: auto; display: block; max-width: 60rem; margin: 0 auto; min-width: 34rem; }
+  .mm-link { cursor: pointer; text-decoration: none; }
+  .mm-node rect { transition: opacity .15s ease, filter .15s ease; }
+  .mm-node text { pointer-events: none; }
+  .mm-link:hover .mm-node rect { filter: brightness(1.06); }
+  .mm-edge { transition: opacity .15s ease; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe</div>
+    <h1>The same warehouse, as a dbt project</h1>
+    <p class="sub">A leader track on why analytics engineering became a role, what models-as-code actually changes, how a test suite works as a governance artifact, and what to buy versus build - with no code to write. And a builder track that rebuilds a marketplace warehouse you already know as a real dbt project: sources, staging, intermediate, dimensions, facts, a type-2 snapshot, four marts, 100 tests, model contracts and CI. The project in this repo runs: <code>dbt build</code> reports PASS=121, ERROR=0, and it reproduces the hand-built version's numbers to the cent. Every model on the site is the SQL dbt compiled, every test in the lab is the project's own, and the lineage graph is read from its manifest.</p>
+    <div class="stats-row">
+      <div class="stat"><b data-count="16">16</b><span>sessions</span></div>
+      <div class="stat"><b data-count="23">23</b><span>dbt models</span></div>
+      <div class="stat"><b data-count="100">100</b><span>tests, all passing</span></div>
+      <div class="stat"><b data-count="121">121</b><span>build steps, 1.22s</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>The leader track 🤝 <span style="font-size:.85rem;font-weight:600;color:var(--muted)">· for heads of data, analytics leads &amp; curious minds · 6 x 45 min · no code to write</span></h2>
+      <p class="plede">Thinking mode: why this role exists between the warehouse and the dashboard, what changes when transformations live in git, how to read a test suite as a trust budget rather than developer hygiene, what to buy and what to build, how to shape the team, and why generated documentation is the only kind that stays true. Each session ends with the questions to ask your data team.</p>
+    </div>
+    <div class="course-grid">
+      <a class="course-card" href="courses/a1-why-analytics-engineering.html" style="--diff:#34D399">
+        <span class="cicon">🧑‍🔧</span><span class="cnum">Leader 1 · easy</span>
+        <h3>Why analytics engineering exists</h3>
+        <p>The role that appeared between the data engineer and the analyst, what forced it, and the sign your organisation already needs one.</p>
+        <span class="meta"><span class="pill amber">▶ Leaders start here</span></span>
+      </a>
+      <a class="course-card" href="courses/a2-models-as-code.html" style="--diff:#34D399">
+        <span class="cicon">🧾</span><span class="cnum">Leader 2 · easy</span>
+        <h3>Models as code</h3>
+        <p>Version control, review, environments and rollback applied to SQL - and what it costs a team that has never had them.</p>
+        <span class="meta"><span class="pill light">Review-culture exercise</span></span>
+      </a>
+      <a class="course-card" href="courses/a3-tests-as-trust.html" style="--diff:#FBBF24">
+        <span class="cicon">🛡️</span><span class="cnum">Leader 3 · medium</span>
+        <h3>Tests as the trust budget</h3>
+        <p>100 tests on 23 models is a governance artifact, not hygiene. Which failures you actually want to block a build, and which are noise.</p>
+        <span class="meta"><span class="pill light">Test-budget exercise</span></span>
+      </a>
+      <a class="course-card" href="courses/a4-buy-vs-build.html" style="--diff:#FBBF24">
+        <span class="cicon">⚖️</span><span class="cnum">Leader 4 · medium</span>
+        <h3>Buy vs build the transformation layer</h3>
+        <p>Core versus Cloud versus hand-rolled versus your ELT vendor's own layer, and the model count where the argument stops being close.</p>
+        <span class="meta"><span class="pill light">Decision frame</span></span>
+      </a>
+      <a class="course-card" href="courses/a5-team-shape.html" style="--diff:#FBBF24">
+        <span class="cicon">👥</span><span class="cnum">Leader 5 · medium</span>
+        <h3>The team shape</h3>
+        <p>Analytics engineer, analyst, data engineer: who owns which layer, who reviews whose model, and how the handoffs actually work.</p>
+        <span class="meta"><span class="pill light">Ownership map</span></span>
+      </a>
+      <a class="course-card" href="courses/a6-docs-that-stay-true.html" style="--diff:#FBBF24">
+        <span class="cicon">📚</span><span class="cnum">Leader 6 · medium</span>
+        <h3>Documentation that stays true</h3>
+        <p>Generated docs and derived lineage versus the wiki nobody updates - and why the difference is structural, not cultural.</p>
+        <span class="meta"><span class="pill light">Readiness checklist</span></span>
+      </a>
+    </div>
+
+    <div class="paths">
+      <h2>The builder track 🛠️ <span style="font-size:.85rem;font-weight:600;color:var(--muted)">· for practitioners · 10 sessions x 45 min (b10: 60) · real DuckDB in your browser</span></h2>
+      <p class="plede">One project: <strong>Bazaar</strong>, the multi-merchant marketplace from <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>, rebuilt as dbt. You already know the model, so every session is about the craft. Each page runs real DuckDB compiled to WebAssembly and executes the SQL <em>dbt itself compiled</em> - so what you query in the browser is what the project builds on a laptop.</p>
+    </div>
+    <div class="course-grid">
+      <a class="course-card" href="courses/b1-hand-written-to-project.html" style="--diff:#34D399">
+        <span class="cicon">🚀</span><span class="cnum">Builder 1 · easy</span>
+        <h3>From hand-written SQL to a project</h3>
+        <p>Run the finished project, read a real build's output, and see the same numbers appear - 111,906.48 to the cent - from version-controlled, tested SQL.</p>
+        <span class="meta"><span class="pill amber">▶ Builders start here</span></span>
+      </a>
+      <a class="course-card" href="courses/b2-project-config.html" style="--diff:#34D399">
+        <span class="cicon">⚙️</span><span class="cnum">Builder 2 · easy</span>
+        <h3>The project config</h3>
+        <p><code>dbt_project.yml</code>, profiles and targets walked line by line - materialization per layer as a decision, and vars instead of hard-coded dates.</p>
+        <span class="meta"><span class="pill light">config walkthrough</span></span>
+      </a>
+      <a class="course-card" href="courses/b3-sources-and-staging.html" style="--diff:#FBBF24">
+        <span class="cicon">📥</span><span class="cnum">Builder 3 · medium</span>
+        <h3>Sources and staging</h3>
+        <p>Declare the eight raw tables once, then one staging model each: rename, recast, no joins. The discipline that makes everything above it readable.</p>
+        <span class="meta"><span class="pill inkpill">8 staging models</span></span>
+      </a>
+      <a class="course-card" href="courses/b4-ref-and-the-dag.html" style="--diff:#FBBF24">
+        <span class="cicon">🕸️</span><span class="cnum">Builder 4 · medium</span>
+        <h3>ref() and the DAG</h3>
+        <p>Explore the project's real lineage - 32 nodes, 47 edges, read from its manifest - and get an impact set before you rename anything.</p>
+        <span class="meta"><span class="pill peach">★ live lineage</span></span>
+      </a>
+      <a class="course-card" href="courses/b5-intermediate-models.html" style="--diff:#FBBF24">
+        <span class="cicon">🔧</span><span class="cnum">Builder 5 · medium</span>
+        <h3>Intermediate models</h3>
+        <p>The joins staging is not allowed to do, materialized as nothing at all - plus the fan-out guard expressed as a model rather than a warning.</p>
+        <span class="meta"><span class="pill inkpill">3 ephemeral models</span></span>
+      </a>
+      <a class="course-card" href="courses/b6-dimensions-facts-snapshots.html" style="--diff:#FB923C">
+        <span class="cicon">🧊</span><span class="cnum">Builder 6 · hands-on</span>
+        <h3>Dimensions, facts, snapshots</h3>
+        <p>Six dimensions and three facts as dbt models, deterministic surrogate keys, and a real type-2 snapshot doing what a hand-written SCD load cannot.</p>
+        <span class="meta"><span class="pill inkpill">12 marts + snapshot</span></span>
+      </a>
+      <a class="course-card" href="courses/b7-break-a-model.html" style="--diff:#FB923C">
+        <span class="cicon">🧨</span><span class="cnum">Builder 7 · hands-on</span>
+        <h3>The break-a-model lab</h3>
+        <p>Six real breakages, the project's own 100 compiled tests. No tests catches 0 of 6, generic catches 4, generic plus singular catches all 6.</p>
+        <span class="meta"><span class="pill peach">★ signature lab</span></span>
+      </a>
+      <a class="course-card" href="courses/b8-marts-and-questions.html" style="--diff:#FB923C">
+        <span class="cicon">📊</span><span class="cnum">Builder 8 · hands-on</span>
+        <h3>Marts and the business questions</h3>
+        <p>Three marts at three grains, the four questions answered again, and why a mart never joins two facts even when it could.</p>
+        <span class="meta"><span class="pill inkpill">3 marts</span></span>
+      </a>
+      <a class="course-card" href="courses/b9-contracts-docs-ci.html" style="--diff:#F87171">
+        <span class="cicon">📜</span><span class="cnum">Builder 9 · hardest</span>
+        <h3>Contracts, docs and deployment</h3>
+        <p>Model contracts, generated docs, exposures for the consumers dbt cannot see, and CI that tests only what a pull request touched.</p>
+        <span class="meta"><span class="pill light">ship it safely</span></span>
+      </a>
+      <a class="course-card" href="courses/b10-capstone.html" style="--diff:#F87171">
+        <span class="cicon">🏁</span><span class="cnum">Builder 10 · hardest · 60 min</span>
+        <h3>Capstone: add a subject area</h3>
+        <p>Returns and refunds through every layer - source, staging, intermediate, dimension, fact, mart, tests, contract - and a green build at the end.</p>
+        <span class="meta"><span class="pill light">whole project, alone</span></span>
+      </a>
+    </div>
+
+    <div class="diff-legend">
+      <span><i style="background:#34D399"></i>easy</span>
+      <span><i style="background:#FBBF24"></i>medium</span>
+      <span><i style="background:#FB923C"></i>hands-on</span>
+      <span><i style="background:#F87171"></i>hardest</span>
+    </div>
+
+    <div class="ships">
+      <h3>What you leave with - a project that runs, not slideware</h3>
+      <div class="ships-body">
+        <div class="ships-col">
+          <b>dbt_project/models/</b>
+          <code>8 staging models</code>
+          <code>3 intermediate (ephemeral)</code>
+          <code>6 dimensions</code>
+          <code>3 facts</code>
+          <code>3 marts</code>
+          <code>2 schema.yml + 1 sources.yml</code>
+        </div>
+        <div class="ships-col">
+          <b>dbt_project/</b>
+          <code>tests/ 5 singular tests</code>
+          <code>macros/ surrogate_key + 2 generic tests</code>
+          <code>snapshots/ merchants_snapshot</code>
+          <code>dbt_project.yml · profiles.yml</code>
+        </div>
+        <div class="ships-col">
+          <b>python/</b>
+          <code>load_raw.py</code>
+          <code>build_browser_assets.py</code>
+          <b style="margin-top:.6rem">materials/</b>
+          <code>official-course-map.md</code>
+        </div>
+      </div>
+    </div>
+
+    <p class="prereq-line">Take <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling-with-phoebe</a> first if you can: this course rebuilds that course's warehouse, and the whole argument depends on knowing what was built by hand. It sits above <a href="https://phoebefu6.github.io/learn-sql-with-phoebe/">learn-sql</a> and beside <a href="https://phoebefu6.github.io/learn-data-warehouse-with-phoebe/">learn-data-warehouse</a>; scheduling and monitoring what you build here is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>, because dbt does not schedule itself.</p>
+    <p class="sources-line">Built from the dbt documentation (models, sources, tests, snapshots, contracts, node selection), the community layering conventions, and Kimball for the model being rebuilt - full source map and honest out-of-scope list in <code>materials/official-course-map.md</code>. Verified against a real <code>dbt build</code>: 23 models, 100 tests, PASS=121, ERROR=0.</p>
+
+    <div class="paths">
+      <h2>Choose your path 🗺️</h2>
+      <p class="plede">Two doors, one project. Leaders never write code; builders never sit through theory they have not just run.</p>
+      <div class="path"><b>🤝 The leader path (judge &amp; fund)</b>
+        <a class="pstep" href="courses/a1-why-analytics-engineering.html">a1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/a2-models-as-code.html">a2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/a3-tests-as-trust.html">a3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/a4-buy-vs-build.html">a4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/a5-team-shape.html">a5</a><span class="parr">→</span>
+        <a class="pstep" href="courses/a6-docs-that-stay-true.html">a6</a>
+      </div>
+      <div class="path"><b>🛠️ The builder path (rebuild Bazaar)</b>
+        <a class="pstep" href="courses/b1-hand-written-to-project.html">b1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b2-project-config.html">b2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b3-sources-and-staging.html">b3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b4-ref-and-the-dag.html">b4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b5-intermediate-models.html">b5</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b6-dimensions-facts-snapshots.html">b6</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b7-break-a-model.html">b7</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b8-marts-and-questions.html">b8</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b9-contracts-docs-ci.html">b9</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b10-capstone.html">b10</a>
+      </div>
+      <div class="path"><b>🚀 The full journey (lead AND build)</b>
+        <a class="pstep" href="courses/a1-why-analytics-engineering.html">a1-a6</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b1-hand-written-to-project.html">b1-b10</a>
+      </div>
+      <div class="path"><b>⚡ The two-hour tour (if you only have one evening)</b>
+        <a class="pstep" href="courses/b1-hand-written-to-project.html">b1 run it</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b4-ref-and-the-dag.html">b4 the DAG</a><span class="parr">→</span>
+        <a class="pstep" href="courses/b7-break-a-model.html">b7 break it</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section mm-section">
+    <h2>The knowledge map 🧠</h2>
+    <p class="mm-lede">Both tracks at a glance - hover a session to spotlight its concepts, click any node to jump in.</p>
+    <div class="mm-wrap"><div id="mindmap"></div></div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a> · built from the dbt documentation and community conventions · the browser labs run real DuckDB on dbt's own compiled SQL</span>
+  </footer>
+</main>
+
+<script>
+window.MINDMAP_DATA = {
+  title: "Analytics\nEngineering",
+  centerColor: "#2B2B33",
+  sessions: [
+    { label: "Why the role\nexists", href: "courses/a1-why-analytics-engineering.html", color: "#34D399",
+      concepts: [ { label: "The gap it fills", href: "courses/a1-why-analytics-engineering.html" },
+                  { label: "Signs you need one", href: "courses/a1-why-analytics-engineering.html" } ] },
+    { label: "Models as\ncode", href: "courses/a2-models-as-code.html", color: "#34D399",
+      concepts: [ { label: "Review + rollback", href: "courses/a2-models-as-code.html" },
+                  { label: "Environments", href: "courses/a2-models-as-code.html" } ] },
+    { label: "Tests as\ntrust", href: "courses/a3-tests-as-trust.html", color: "#FBBF24",
+      concepts: [ { label: "What blocks a build", href: "courses/a3-tests-as-trust.html" },
+                  { label: "Noise costs trust", href: "courses/a3-tests-as-trust.html" } ] },
+    { label: "Buy vs\nbuild", href: "courses/a4-buy-vs-build.html", color: "#FBBF24",
+      concepts: [ { label: "Core vs Cloud", href: "courses/a4-buy-vs-build.html" },
+                  { label: "The model-count line", href: "courses/a4-buy-vs-build.html" } ] },
+    { label: "Team\nshape", href: "courses/a5-team-shape.html", color: "#FBBF24",
+      concepts: [ { label: "Who owns a layer", href: "courses/a5-team-shape.html" },
+                  { label: "Review handoffs", href: "courses/a5-team-shape.html" } ] },
+    { label: "Docs that\nstay true", href: "courses/a6-docs-that-stay-true.html", color: "#FBBF24",
+      concepts: [ { label: "Generated vs wiki", href: "courses/a6-docs-that-stay-true.html" },
+                  { label: "Derived lineage", href: "courses/a6-docs-that-stay-true.html" } ] },
+    { label: "Hand-written\nto project", href: "courses/b1-hand-written-to-project.html", color: "#34D399",
+      concepts: [ { label: "What dbt does", href: "courses/b1-hand-written-to-project.html" },
+                  { label: "Reading a build", href: "courses/b1-hand-written-to-project.html" } ] },
+    { label: "Project\nconfig", href: "courses/b2-project-config.html", color: "#34D399",
+      concepts: [ { label: "Materializations", href: "courses/b2-project-config.html" },
+                  { label: "Profiles + targets", href: "courses/b2-project-config.html" } ] },
+    { label: "Sources &\nstaging", href: "courses/b3-sources-and-staging.html", color: "#FBBF24",
+      concepts: [ { label: "source() once", href: "courses/b3-sources-and-staging.html" },
+                  { label: "Rename, recast", href: "courses/b3-sources-and-staging.html" } ] },
+    { label: "ref() and\nthe DAG", href: "courses/b4-ref-and-the-dag.html", color: "#FBBF24",
+      concepts: [ { label: "Compilation", href: "courses/b4-ref-and-the-dag.html" },
+                  { label: "Impact sets", href: "courses/b4-ref-and-the-dag.html" } ] },
+    { label: "Intermediate\nmodels", href: "courses/b5-intermediate-models.html", color: "#FBBF24",
+      concepts: [ { label: "Ephemeral", href: "courses/b5-intermediate-models.html" },
+                  { label: "Fan-out guard", href: "courses/b5-intermediate-models.html" } ] },
+    { label: "Dims, facts,\nsnapshots", href: "courses/b6-dimensions-facts-snapshots.html", color: "#FB923C",
+      concepts: [ { label: "Surrogate keys", href: "courses/b6-dimensions-facts-snapshots.html" },
+                  { label: "Type-2 snapshot", href: "courses/b6-dimensions-facts-snapshots.html" } ] },
+    { label: "Break-a-model\nlab", href: "courses/b7-break-a-model.html", color: "#FB923C",
+      concepts: [ { label: "Generic vs singular", href: "courses/b7-break-a-model.html" },
+                  { label: "0/6 to 6/6", href: "courses/b7-break-a-model.html" } ] },
+    { label: "Marts &\nquestions", href: "courses/b8-marts-and-questions.html", color: "#FB923C",
+      concepts: [ { label: "Three grains", href: "courses/b8-marts-and-questions.html" },
+                  { label: "Never join facts", href: "courses/b8-marts-and-questions.html" } ] },
+    { label: "Contracts,\ndocs, CI", href: "courses/b9-contracts-docs-ci.html", color: "#F87171",
+      concepts: [ { label: "Model contracts", href: "courses/b9-contracts-docs-ci.html" },
+                  { label: "state:modified+", href: "courses/b9-contracts-docs-ci.html" } ] },
+    { label: "Capstone:\nreturns", href: "courses/b10-capstone.html", color: "#F87171",
+      concepts: [ { label: "Every layer", href: "courses/b10-capstone.html" },
+                  { label: "Green build", href: "courses/b10-capstone.html" } ] }
+  ]
+};
+</script>
+<script src="assets/mindmap.js?v=1"></script>
+<script src="assets/app.js?v=2"></script>
+</body>
+</html>

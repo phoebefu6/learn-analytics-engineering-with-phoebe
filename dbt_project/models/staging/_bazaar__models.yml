@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: stg_bazaar__users
+    description: One row per registered shopper, renamed and recast. No joins.
+    columns:
+      - name: user_id
+        tests: [unique, not_null]
+      - name: user_country
+        tests: [not_null]
+
+  - name: stg_bazaar__merchants
+    description: One row per selling merchant.
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]
+      - name: merchant_tier
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                  values: ['bronze', 'silver', 'gold', 'platinum']
+
+  - name: stg_bazaar__products
+    description: One row per sellable product, with the modeled price_tier band.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: price_tier
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['budget', 'mid', 'premium']
+      - name: list_price
+        tests:
+          - dbt_positive_value
+
+  - name: stg_bazaar__carts
+    description: One row per cart. Intent, not money.
+    columns:
+      - name: cart_id
+        tests: [unique, not_null]
+      - name: cart_status
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['active', 'abandoned', 'converted']
+
+  - name: stg_bazaar__cart_items
+    description: One row per product per cart - the associative table.
+    tests:
+      - unique_combination:
+          arguments:
+              columns: ['cart_id', 'product_id']
+    columns:
+      - name: quantity
+        tests: [dbt_positive_value]
+
+  - name: stg_bazaar__orders
+    description: One row per order header, with is_settled defined once.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: ordered_at
+        tests: [not_null]
+
+  - name: stg_bazaar__order_items
+    description: One row per product line on one order - the grain of "what was sold".
+    tests:
+      - unique_combination:
+          arguments:
+              columns: ['order_id', 'line_no']
+    columns:
+      - name: quantity
+        tests: [dbt_positive_value]
+      - name: order_id
+        tests:
+          - relationships:
+              arguments:
+                  to: ref('stg_bazaar__orders')
+                  field: order_id
+
+  - name: stg_bazaar__transactions
+    description: One row per payment attempt. An order can appear several times.
+    columns:
+      - name: txn_id
+        tests: [unique, not_null]
+      - name: txn_status
+        tests:
+          - accepted_values:
+              arguments:
+                  values: ['approved', 'declined', 'refunded']

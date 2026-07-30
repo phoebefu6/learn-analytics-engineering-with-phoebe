@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 1 · Why analytics engineering exists - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 1 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 1 of 6</div>
+    <h1>Why analytics engineering <span class="accent">exists</span></h1>
+    <p class="sub">A job title appeared between the data engineer and the analyst, and it was not a marketing exercise. Cloud warehouses made storage and compute cheap, loading raw data first became cheaper than transforming on the way in, and transformation moved inside the warehouse as SQL. A great deal of SQL, changing every week, that nobody had been hired to own. This session is about what that created, the three jobs that were previously nobody's, and the honest signal that your organisation already needs somebody holding them. No code, and nothing to install.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">▶ Leaders start here</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-15 · What changed, and what it created</span>
+      <span class="a4" style="flex:5">15-30 · The three unowned jobs, and where the role sits</span>
+      <span class="a3" style="flex:4">30-42 · Discussion: the two-signal audit</span>
+      <span class="a1" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>How this track works</h2>
+    </div>
+    <p class="lede">▶ <strong>Leaders start here.</strong> Six sessions, forty-five minutes each, and you will not write a line of SQL in any of them. This track exists because the people who approve the tooling spend and referee the "why do these numbers differ" meetings need a different thing from the people who build the models. You need to know what the category buys, what it costs, what to fund, who owns what, and which questions to ask a team that knows more about the mechanics than you do.</p>
+    <p class="lede">Today is the why. <a href="a2-models-as-code.html">a2</a> is what changes when SQL lives in git. <a href="a3-tests-as-trust.html">a3</a> reads a test suite as a governance artifact. <a href="a4-buy-vs-build.html">a4</a> owns buy versus build, including the Core versus Cloud decision. <a href="a5-team-shape.html">a5</a> owns team shape and ownership boundaries. <a href="a6-docs-that-stay-true.html">a6</a> owns documentation and lineage. Nothing here pre-empts those four; when a question belongs to a later session, this page says so and moves on.</p>
+    <p class="lede">Every number quoted in this track comes from one project in this repository, and that project is unusual in a useful way: <strong>the same marketplace warehouse exists twice</strong>. Once hand-written, as eight SQL files plus a Python validator with 27 checks. Once as a dbt project, with 23 models, 100 tests, one snapshot and eight declared sources. Both produce settled net revenue of 111,906.48 over 957 orders, average order value 116.93, identical to the cent. So when this track compares the two ways of working, it is comparing two things that actually exist rather than a tool against a straw man.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your own team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A one-paragraph answer to "what is an analytics engineer and why would we fund one", the three jobs that go unowned without the role and the symptom of each, two signals you can check against your own estate this week, and six questions to put to your data team.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHAT CHANGED ============ -->
+  <section class="section" id="what-changed">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the analytics-engineering premise</span>
+      <h2>What changed, and what it created <span class="tag concept">12 min live</span></h2>
+    </div>
+    <p class="lede">The role did not appear because somebody wanted a new title. It appeared because a cost curve moved and the work relocated. For most of the history of data warehousing, transformation happened <em>before</em> the warehouse, inside an extract-transform-load tool, because warehouse storage and compute were the expensive part and you only loaded what you had already shaped. Cloud warehouses inverted that. Storage got cheap and compute became something you rent by the second, so the cheapest thing to do became: load the raw data as it is, and shape it afterwards, in the warehouse, in SQL.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 336" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transformation moving from an ETL tool before the warehouse to SQL inside the warehouse, and the ownership gap that created">
+        <style>
+          .elT { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .elTw { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .elC { font: 400 10.5px Inter, sans-serif; fill: #6B6B78; }
+          .elCw { font: 400 10.5px Inter, sans-serif; fill: #FDF0EB; }
+          .elL { font: 700 11px Inter, sans-serif; fill: #D94E24; }
+          .elL2 { font: 700 11px Inter, sans-serif; fill: #3F7F72; }
+          .elH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .elN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .elArr { stroke: #F1855F; stroke-width: 2.5; fill: none; marker-end: url(#elAh); }
+        </style>
+        <defs>
+          <marker id="elAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#F1855F"/>
+          </marker>
+        </defs>
+
+        <text class="elL" x="26" y="24">THEN · ETL · transformation before the warehouse</text>
+
+        <rect x="26" y="34" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="40" y="58">Source systems</text>
+        <text class="elC" x="40" y="78">CRM, payments, app DB</text>
+
+        <rect x="242" y="34" width="180" height="58" rx="8" fill="#2B2B33"/>
+        <text class="elTw" x="256" y="58">ETL tool</text>
+        <text class="elCw" x="256" y="78">transformation runs here</text>
+
+        <rect x="458" y="34" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="472" y="58">Warehouse</text>
+        <text class="elC" x="472" y="78">presentation only</text>
+
+        <rect x="674" y="34" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="688" y="58">BI tool</text>
+        <text class="elC" x="688" y="78">reads finished tables</text>
+
+        <path class="elArr" d="M210,63 L238,63"/>
+        <path class="elArr" d="M426,63 L454,63"/>
+        <path class="elArr" d="M642,63 L670,63"/>
+
+        <text class="elL2" x="26" y="132">NOW · ELT · transformation inside the warehouse</text>
+
+        <rect x="26" y="142" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="40" y="166">Source systems</text>
+        <text class="elC" x="40" y="186">same systems, untouched</text>
+
+        <rect x="242" y="142" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="256" y="166">Loader (EL)</text>
+        <text class="elC" x="256" y="186">copies raw, no logic</text>
+
+        <rect x="458" y="142" width="180" height="58" rx="8" fill="#D94E24"/>
+        <text class="elTw" x="472" y="166">Warehouse</text>
+        <text class="elCw" x="472" y="186">transformation runs here</text>
+
+        <rect x="674" y="142" width="180" height="58" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="elT" x="688" y="166">BI tool</text>
+        <text class="elC" x="688" y="186">reads modelled tables</text>
+
+        <path class="elArr" d="M210,171 L238,171"/>
+        <path class="elArr" d="M426,171 L454,171"/>
+        <path class="elArr" d="M642,171 L670,171"/>
+
+        <rect x="26" y="224" width="828" height="100" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="elH" x="46" y="250">What actually changed, and why a new job fell out of it</text>
+        <text class="elN" x="46" y="274">Cloud warehouses made storage and compute cheap, so loading raw data and shaping it afterwards got cheaper.</text>
+        <text class="elN" x="46" y="294">Transformation moved into the warehouse and became SQL that changes weekly and somebody has to own like software.</text>
+        <text class="elN" x="46" y="314">Nobody had been hired for that. The person eventually hired for it is the analytics engineer.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the cost curve moved, so the work moved, so the ownership gap opened</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why "it is now SQL" is the whole story<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>When transformation lived inside an extract-transform-load tool, it was a vendor product with a graphical interface, a licence, a specialist, and a change process. Slow, expensive, and constrained. Also, quietly, <em>governed</em>: there was a small number of people who could change it and a tool that recorded what they did.</p>
+        <p>When transformation became SQL in a warehouse, all of those constraints fell away at once. Anybody who can write a SELECT can add a transformation. That is a genuine unlock, and it is why the modern data stack got adopted so fast. It is also why estates degrade so predictably:</p>
+        <ul>
+          <li><strong>The volume grows faster than anyone expects.</strong> A warehouse that starts with four transformations has forty inside eighteen months, because each one is cheap to add and nothing forces a decision about whether it should exist.</li>
+          <li><strong>Nothing records intent.</strong> A SQL file changed in place tells you what it says today, not what it said last quarter or why somebody changed it. The reason lives in a person's memory, and people leave.</li>
+          <li><strong>There is no natural review point.</strong> A change to a definition and a change to a formatting preference look identical when both are "somebody edited the script".</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The one-sentence version</strong>
+          Analytics engineering is what you get when you apply software-engineering discipline to the SQL that now lives in your warehouse, because that SQL became load-bearing and nobody had been treating it that way. Session <a href="a2-models-as-code.html">a2</a> is entirely about which disciplines and what they cost.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Bazaar, and why this course rebuilt the same warehouse twice<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>Bazaar</strong> is a multi-merchant marketplace: 12 merchants, 60 products, 985 orders, 1,060 payment attempts, 90 days of history. Small enough to hold in your head, complicated enough to be honest, and the domain is the kind most organisations actually have.</p>
+        <p>The sibling course <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a> built Bazaar's warehouse by hand: table definitions, a transformation script, four marts, and a Python validator with 27 checks. It works. Nothing about it is a caricature, and the person who wrote it was not careless.</p>
+        <p>This course rebuilt the identical warehouse as a dbt project: 23 models (8 staging views, 3 ephemeral intermediate models, 12 mart tables), 100 tests, one snapshot, 8 declared sources. A full build reports PASS=121, WARN=0, ERROR=0 in 1.22 seconds on a laptop. Its lineage graph has 32 nodes and 47 edges, derived from the SQL rather than drawn by anybody. It was built on dbt-core 1.12.0 with dbt-duckdb 1.10.1.</p>
+        <p>The point of doing it twice is that the comparison is measurable rather than asserted. Both versions produce settled net revenue of 111,906.48 over 957 orders, AOV 116.93. Same numbers, to the cent. Whatever the second version bought, it was not accuracy. Hold onto that sentence, because it disqualifies most of what gets said about transformation tooling in a vendor meeting.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why the same thing happened in software twenty years earlier<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>None of this is new. Software went through it: as soon as code became cheap to write and deploy, the discipline moved from "who is allowed to change it" to "how do we make changes safe" - version control, review, environments, automated tests. Every practice in this track is borrowed from that period, and the borrowing is deliberate rather than fashionable.</p>
+        <p>Which is also why the categories outlive the products. dbt is the subject of this course because it is the tool most teams will meet, and this repository's project is a real dbt project. But the durable ideas are: transformation as a reviewable artifact, dependencies derived rather than maintained, assertions that run before anybody sees a number, documentation generated from the thing it documents. Those will survive whatever replaces today's tools, and a leader who learns the categories rather than the buttons does not have to relearn this in five years.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: THE THREE UNOWNED JOBS ============ -->
+  <section class="section" id="three-jobs">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the load-bearing part of the session</span>
+      <h2>The three jobs that were nobody's <span class="tag concept">10 min live</span></h2>
+    </div>
+    <p class="lede">Here is the most useful way to think about the role, and it has nothing to do with tools. Between your raw data arriving and a number appearing on a dashboard, three things have to be owned. In most organisations that have not made this hire, all three are partially owned by everybody, which is a specific and recognisable failure mode rather than a vague one.</p>
+
+    <table class="clean">
+      <thead><tr><th>The job</th><th>What owning it means</th><th>The symptom when nobody owns it</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>The transformation layer</td>
+          <td>Every model between the raw tables and the dashboard: what exists, what it is called, what it is built from, when it gets rebuilt, and what gets retired.</td>
+          <td>One transformation script over fifteen models that three people edit, nobody refactors, and everybody works around by writing their own version. The estate nobody dares change.</td>
+        </tr>
+        <tr>
+          <td>The definitions</td>
+          <td>What a word means, once, in one place. Active customer, settled revenue, a month. Including the authority to say no to a second version of an existing word.</td>
+          <td>Two teams presenting different numbers for the same word, both defensible, resolved verbally in a meeting and then forgotten until the next meeting.</td>
+        </tr>
+        <tr>
+          <td>The tests</td>
+          <td>The assertions that must hold before anybody sees a number, plus the judgement call about which failures stop the world and which are worth only a note.</td>
+          <td>A validation script somebody remembers to run, and finance finding the error before the data team does. Trust that decays without any single visible incident.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 336" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two honest signals that an organisation already needs an analytics engineer: the script test and the meeting test">
+        <style>
+          .sgT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .sgC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .sgH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .sgN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="32" width="402" height="42" rx="8" fill="#D94E24"/>
+        <text class="sgT" x="44" y="59">Signal 1 · the script test</text>
+        <rect x="26" y="74" width="402" height="122" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="sgC" x="44" y="100">Count the outputs your most complicated</text>
+        <text class="sgC" x="44" y="120">transformation script produces. If that is over</text>
+        <text class="sgC" x="44" y="140">about fifteen, and more than one person edits it,</text>
+        <text class="sgC" x="44" y="160">the transformation layer is already a full job.</text>
+        <text class="sgC" x="44" y="180">It is just nobody's job.</text>
+
+        <rect x="452" y="32" width="402" height="42" rx="8" fill="#2B2B33"/>
+        <text class="sgT" x="470" y="59">Signal 2 · the meeting test</text>
+        <rect x="452" y="74" width="402" height="122" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="sgC" x="470" y="100">Have two teams ever presented different numbers</text>
+        <text class="sgC" x="470" y="120">for the same word in the same meeting, and both</text>
+        <text class="sgC" x="470" y="140">were defensible? That is an unowned definition.</text>
+        <text class="sgC" x="470" y="160">It does not resolve by itself, and it does not</text>
+        <text class="sgC" x="470" y="180">resolve by picking a winner on the day.</text>
+
+        <rect x="26" y="222" width="828" height="98" rx="9" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="sgH" x="46" y="248">Either signal on its own is enough</text>
+        <text class="sgN" x="46" y="272">Neither signal is about company size. A forty-person company can trip both. A large company with one</text>
+        <text class="sgN" x="46" y="292">warehouse team and a real review habit can trip neither. What the signals measure is edit pressure on</text>
+        <text class="sgN" x="46" y="312">shared SQL, which is exactly the thing this role was invented to absorb.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - two checks you can run against your own estate before Friday</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why the definitions job is the one that gets skipped<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Of the three, the transformation layer is the one everyone recognises, because unowned SQL is visible. The tests job gets recognised after the first embarrassing incident. The definitions job is the one that gets skipped, for a reason worth naming out loud: <strong>it is the only one of the three that requires authority rather than skill.</strong></p>
+        <p>Deciding what "active customer" means is not a technical act. It is a decision that costs somebody something, because at least one team is currently using a definition that will lose. A person with no standing cannot make it, and a person with standing usually has more urgent things to do. So the decision does not get made, and instead the warehouse accumulates three definitions of the same word, each locally correct.</p>
+        <p>This matters to you specifically, because the fix is not the hire. You can hire an excellent analytics engineer who owns the transformation layer beautifully and still lose the definitions job, because nobody backed their right to say no. That is the part only a leader can supply.</p>
+        <div class="callout tip">
+          <strong>The forward pointer</strong>
+          Who arbitrates a definition, and how a disagreement gets escalated without becoming a fight, is session <a href="a5-team-shape.html">a5</a>. Today the point is only that it is a distinct job from writing the SQL, and that the two are routinely confused.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why the transformation layer is the one that gets dropped<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The boundaries between roles move between companies and that is fine. What is not fine is a boundary nobody has stated, because the layer that gets dropped is always the middle one, and for entirely reasonable reasons on all sides.</p>
+        <p>Data engineers reasonably decline to own business meaning: they cannot arbitrate what settled revenue means, and they should not be asked to. Analysts reasonably decline to own a shared table that four other teams depend on: that is a maintenance commitment with no end date, and it competes with the analysis they are measured on. So the models in between get maintained by whoever needed them most recently, which is how you end up with eleven tables and no owner.</p>
+        <p>This is worth understanding as a structural problem rather than a motivational one. Nobody is shirking. The work sits between two job descriptions, and work between job descriptions does not get done, it gets absorbed unevenly until somebody burns out or leaves.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: WHERE IT SITS ============ -->
+  <section class="section" id="where-it-sits">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · so you can read a job description properly</span>
+      <h2>Where it sits, and what it is not <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">Three lanes, one pipeline. The two mistakes below are common enough to be worth pre-empting out loud, because each of them produces a bad hire, a disappointed team and an unhappy person, and both are easy to make from a distance.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 384" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three lanes: data engineering owns the pipes, analytics engineering owns the models and definitions, analysts own the questions">
+        <style>
+          .lnT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .lnC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .lnH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .lnN { font: 600 11.5px Inter, sans-serif; fill: #991B1B; }
+        </style>
+
+        <text class="lnH" x="26" y="30">Three jobs, one pipeline. The middle lane is the new one.</text>
+
+        <rect x="26" y="48" width="200" height="56" rx="8" fill="#2B2B33"/>
+        <text class="lnT" x="42" y="82">Data engineering</text>
+        <rect x="242" y="48" width="612" height="56" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="lnC" x="258" y="72">Gets data into the warehouse and keeps it arriving: extraction, loading, orchestration,</text>
+        <text class="lnC" x="258" y="92">infrastructure, cost. Owns the pipes and the arrival guarantee, not the meaning.</text>
+
+        <rect x="26" y="116" width="200" height="56" rx="8" fill="#D94E24"/>
+        <text class="lnT" x="42" y="150">Analytics engineering</text>
+        <rect x="242" y="116" width="612" height="56" rx="8" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="lnC" x="258" y="140">Owns everything between the raw tables and the dashboard: the models, the definitions,</text>
+        <text class="lnC" x="258" y="160">the tests. Writes SQL, but works like an engineer: version control, review, environments.</text>
+
+        <rect x="26" y="184" width="200" height="56" rx="8" fill="#3F7F72"/>
+        <text class="lnT" x="42" y="218">Analyst / BI</text>
+        <rect x="242" y="184" width="612" height="56" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="lnC" x="258" y="208">Asks questions of the modelled tables and answers them: exploration, dashboards, the</text>
+        <text class="lnC" x="258" y="228">decision itself. Owns the question and the interpretation, not the plumbing.</text>
+
+        <rect x="26" y="268" width="828" height="100" rx="9" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="lnH" x="46" y="294">What the role is NOT</text>
+        <text class="lnN" x="46" y="318">Not a renamed analyst. An analyst answers a question; an analytics engineer builds the tables the answer</text>
+        <text class="lnN" x="46" y="338">comes from. Not a junior data engineer either: the hard part there is infrastructure and scale, the hard</text>
+        <text class="lnN" x="46" y="358">part here is business meaning holding still while the SQL changes. Different ceilings, different reviewers.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three lanes, and the two mistakes worth pre-empting</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The two mistakes, and the test that separates the three<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Not a renamed analyst.</strong> An analyst answers a question. An analytics engineer builds the tables the answer comes from. The overlap is SQL and almost nothing else: an analyst optimises for a defensible answer this week, an analytics engineer optimises for that answer still being defensible in a year, after four other people have edited the model. Retitling your analysts does not create the capability, and it usually costs you analysis, because the new work is genuinely different work and it expands to fill the week.</li>
+          <li><strong>Not a junior data engineer.</strong> The hard part of data engineering is infrastructure, throughput, cost and failure at scale. The hard part of analytics engineering is business meaning holding still while the SQL underneath it changes. Neither is a subset of the other, they fail in different ways, and they need different reviewers. Treating the role as a stepping stone into data engineering tells your strongest candidates the job has no ceiling, and they will believe you.</li>
+        </ul>
+        <p>A useful test when you are reading a job description, an internal proposal or a vendor's positioning: <strong>if the deliverable is a report, it is analysis. If the deliverable is a pipeline or a platform, it is data engineering. If the deliverable is a table other people build on, it is analytics engineering.</strong></p>
+        <div class="callout tip">
+          <strong>The forward pointer</strong>
+          Who reviews whose model, what happens when a data engineer and an analytics engineer disagree about a source, and how to cover the middle lane when you have no new headcount is all session <a href="a5-team-shape.html">a5</a>. Today the point is only that the middle lane exists and is distinct.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What to do when there is no headcount<span class="mini">2 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The honest answer is that a great many organisations get the capability before they get the title, and that is a legitimate route rather than a compromise. What does not work is leaving it implicit.</p>
+        <p>The minimum viable version is one named person who owns the transformation layer for one subject area, with a stated fraction of their week protected for it and a stated reviewer for their changes. Not a committee, not a rota, and not "everyone is responsible for data quality", which reliably means nobody is. The named person is doing the job even if their business card says analyst, and the protected time is what stops the job from silently becoming a hobby.</p>
+        <p>What you are buying with that arrangement is a place for the three jobs to sit. Sessions <a href="a4-buy-vs-build.html">a4</a> and <a href="a5-team-shape.html">a5</a> are about how far that arrangement stretches before it needs real headcount and real tooling, and both give a number rather than a feeling.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discussion">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 12 min · everybody talks</span>
+      <h2>The two-signal audit <span class="tag demo">★ run this with your own team</span></h2>
+    </div>
+    <p class="lede">No slides and nothing to install. Both exercises below are designed to be run verbally in a meeting you already have on the calendar, and both are diagnostic rather than rhetorical: you are trying to find out whether you have the problem, not to build a case for buying something.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Ask the script question first, and let somebody count out loud.</strong> The number matters less than how confidently it arrives. Hesitation is itself the finding.</p></div>
+      <div class="step"><p><strong>Then ask the meeting question.</strong> Do not ask whether definitions are inconsistent, which invites a reassuring answer. Ask for a specific past incident, which invites a real one.</p></div>
+      <div class="step"><p><strong>Write both answers down, verbatim, with the date.</strong> If you decide to fund the role, this is the before-picture, and in nine months nobody will remember how bad it was.</p></div>
+      <div class="step"><p><strong>Do not decide anything in the room.</strong> The decision needs <a href="a4-buy-vs-build.html">a4</a> and <a href="a5-team-shape.html">a5</a>. Today you are only establishing whether the three jobs are owned.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · The script question<span class="mini">6 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"Name the biggest transformation script or workbook we own. Roughly how many tables or views does it produce? And who reviewed the last change that went into it?"</p>
+        <h4>What a good answer sounds like</h4>
+        <p>Specific and slightly boring. "It is the nightly revenue build, it produces about eleven tables, and Priya reviewed the last change on a branch before it merged." That is a team that has already solved this, whatever they call it. A different good answer is honestly bad news delivered clearly: "It produces about thirty things, four of us edit it, and nobody reviews anything because we are the only people who understand it." That is a team telling you the truth, and it is the answer that justifies the hire.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>Vagueness that sounds like competence. "It is all in the warehouse", "it depends on the domain", "the pipeline handles that". Nobody is hiding anything; there is genuinely no answer, because no single person can see the whole of it. Also listen for a count that comes back suspiciously low followed by a correction, and for the phrase "and then there is the other one" - a second script somebody maintains privately is the same finding with a worse ending.</p>
+        <div class="callout tip">
+          <strong>Why the third clause is the important one</strong>
+          "Who reviewed the last change" is doing more work than the count. A team of five can maintain forty models safely if every change is read by a second person. A team of two will lose control of twelve models if nobody reads anything. Session <a href="a2-models-as-code.html">a2</a> is built on exactly this.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · The meeting question<span class="mini">6 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"Think of the last time two teams brought different numbers for the same word into the same meeting. Who decided which one was right, and where is that decision written down today?"</p>
+        <h4>What a good answer sounds like</h4>
+        <p>An actual incident, named, with an outcome you can go and look at. "Marketing and finance disagreed on settled revenue in March, we agreed finance's version, and it is now the definition in the revenue model with a description on the column." That is the definitions job being owned. Note that the second half of the answer is the whole test: a decision that exists only in a meeting was not a decision, it was a truce.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>"That does not really happen here." It happens everywhere that has more than one team and more than one dashboard, so this answer usually means the differences are not being surfaced, which is worse than an argument. The second failure mode is a decision everyone remembers and nobody can locate: "we agreed it is the finance one" with no artifact behind it. That definition will drift back within two quarters, and it will drift back silently.</p>
+        <div class="callout tip">
+          <strong>If you only get one number out of this session</strong>
+          Ask how many distinct definitions of your single most quoted metric currently exist in dashboards. Two is normal. Four means the definitions job has been unowned for a while, and no tool will fix that on its own.
+        </div>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Bazaar is the honest version of this, because both estates exist and both are visible.</strong> The hand-written warehouse is eight SQL files and a 27-check Python validator that a human has to remember to run. The dbt version is 23 models and 100 tests that run on every build, in 1.22 seconds. Neither is a caricature and both were written carefully, which is why the comparison is worth anything.</p>
+      <p>And the result of the comparison is deliberately unglamorous: <strong>111,906.48 of settled net revenue over 957 orders, AOV 116.93, from both versions, identical to the cent.</strong> The tooling did not improve the numbers. It changed who could safely change them, how fast a mistake surfaces, and whether the reason for a definition survives the person who chose it. If a vendor tells you their transformation layer will make your numbers more accurate, they are describing something else, and you should ask them which of the three jobs above their product actually owns.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="questions">
+    <div class="section-kicker">
+      <span class="klabel">Take this away</span>
+      <h2>Questions to ask your data team <span class="tag concept">6 questions</span></h2>
+    </div>
+    <p class="lede">Each of these is answerable in under a minute by a team that has the situation under control, and each one is diagnostic rather than leading. None of them requires you to read SQL.</p>
+
+    <table class="clean">
+      <thead><tr><th>Ask this</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"Which of our transformations would break if the person who wrote it left this month?"</td>
+          <td>Turns an abstract worry into a named list. Teams answer this one honestly because it is not an accusation, and the list is usually shorter and more specific than you feared, which makes it actionable.</td>
+        </tr>
+        <tr>
+          <td>"Who owns the definition of our single most quoted metric, and can they say no to a second version of it?"</td>
+          <td>Separates the two halves of the definitions job. Most teams can name an owner; far fewer can say that person has the standing to refuse. The gap between those two answers is the thing only you can close.</td>
+        </tr>
+        <tr>
+          <td>"How would we find out that a number on a dashboard has been wrong for a fortnight?"</td>
+          <td>Asks about detection rather than prevention, which is the question that separates a tested estate from a hopeful one. If the answer is "somebody would notice it looks odd", you have no detection, you have luck.</td>
+        </tr>
+        <tr>
+          <td>"When we change what a word means, what happens to the dashboards that already use it?"</td>
+          <td>Surfaces whether anybody can see downstream impact before shipping a change. A team that can answer has lineage; a team that cannot is changing definitions blind, and finds out from a stakeholder.</td>
+        </tr>
+        <tr>
+          <td>"If I asked for one new table, would you rather add it to something that exists or start fresh, and why?"</td>
+          <td>A wonderfully revealing question. "Start fresh" almost always means the existing estate is too frightening to touch, which is the script signal arriving by a different route and in the team's own words.</td>
+        </tr>
+        <tr>
+          <td>"Which of these three do we already own: the transformation layer, the definitions, the tests?"</td>
+          <td>Ask it exactly like that, as a checklist, and let people disagree with each other in front of you. Watching where the disagreement lands tells you more than the answers do, and it makes the gap collective rather than personal.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session a2 <span class="tag exercise">◐ 30-40 min total, all conversations</span></h2>
+    </div>
+    <ul>
+      <li>Run the script question and the meeting question with your data team, and write both answers down verbatim with the date. Ten minutes, and it is the only before-picture you will ever get.</li>
+      <li>Pick your single most quoted metric and ask three different people what it means, separately. Compare the answers. If they differ, you have found the definitions job, and you did it without opening a query editor.</li>
+      <li>Look at one job description your organisation has posted for a data role in the last year, and decide which of the three jobs it was actually hiring for. Very often it was written for two of them at once, which is why the hire disappointed everybody.</li>
+      <li>Ask your team who reviewed the last change to your most important transformation, and how long the review took. Bring the answer to <a href="a2-models-as-code.html">a2</a>, because review culture is the precondition for everything in that session.</li>
+      <li>Optional and worth it: skim <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>'s front page for twenty minutes so you know what the hand-written version of Bazaar looks like. This whole track compares against it.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The analytics-engineering premise - what moving transformation into the warehouse created, and the layer somebody has to own</span><span class="note">Parts 1-2 · measured against this course's own project, both versions of it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Software-engineering practice applied to SQL - version control, review, CI</span><span class="note">Named as the answer, not taught · session <a href="a2-models-as-code.html">a2</a> covers all four practices and their cost</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation - models and tests</span><span class="note">Named only, no syntax on this page · builder <a href="b1-hand-written-to-project.html">b1</a> runs a real build and <a href="b7-break-a-model.html">b7</a> runs the test suite</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The community layering conventions (staging, intermediate, marts)</span><span class="note">Only as the boundary between the three lanes · builder <a href="b3-sources-and-staging.html">b3</a> is where the layers are built</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - the dimensional model Bazaar uses</span><span class="note">The model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>, not this course; this page only reuses its warehouse</span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · Your head of data says the warehouse team is fine because both transformation scripts were written by the same careful person. What is the strongest follow-up?</p>
+      <button class="qopt" type="button">A · Ask how many rows the scripts process, since volume is what creates risk</button>
+      <button class="qopt" type="button">B · Ask which cloud warehouse they run on, since that determines the tooling</button>
+      <button class="qopt" type="button">C · Ask how many outputs the scripts produce and who read the last change to them, since edit pressure on shared SQL is what the role absorbs</button>
+      <p class="qwhy">The signal is never carefulness or volume, it is how many people edit shared SQL and whether anybody reads the change. A careful author is exactly the situation that degrades quietly, because it works until they go on holiday or leave.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">2 · Rebuilt as a dbt project, Bazaar produces settled revenue of 111,906.48 - identical to the cent to the hand-written version. As a leader, what should you conclude?</p>
+      <button class="qopt" type="button">A · The tooling is not worth funding, because it changed nothing measurable</button>
+      <button class="qopt" type="button">B · The gain is in safety of change and traceability, not accuracy, so the business case has to be argued on those grounds</button>
+      <button class="qopt" type="button">C · The hand-written version must have been unusually good, so the comparison is unfair</button>
+      <p class="qwhy">Identical numbers are the honest baseline. Anything that claims to improve your numbers is really changing a definition. What actually changed is who can safely change the SQL, how fast a mistake surfaces, and whether the reasoning survives the author - and those are the only grounds on which to fund it.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Of the three previously unowned jobs, which one cannot be fixed by the hire alone?</p>
+      <button class="qopt" type="button">A · The definitions, because settling what a word means requires authority somebody has to grant, not just skill</button>
+      <button class="qopt" type="button">B · The transformation layer, because it needs more headcount than one person</button>
+      <button class="qopt" type="button">C · The tests, because test coverage depends on the tooling you buy</button>
+      <p class="qwhy">At least one team is currently using a definition that will lose, so the decision costs somebody something. A skilled analytics engineer with no backing gets overruled quietly and stops trying. That backing is the part only a leader supplies, and session a5 works out how to structure it.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Leader session 1 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>What created the role</b><span>Cheap cloud storage and compute made ELT cheaper than ETL, so transformation moved into the warehouse and became SQL somebody has to own like software.</span></div>
+      <div class="cheat-item"><b>The three unowned jobs</b><span>The transformation layer, the definitions, the tests. Without the role, all three are partially owned by everybody.</span></div>
+      <div class="cheat-item"><b>Signal 1 · the script test</b><span>A transformation script over about fifteen outputs that more than one person edits.</span></div>
+      <div class="cheat-item"><b>Signal 2 · the meeting test</b><span>Two teams presenting different numbers for the same word, both defensible.</span></div>
+      <div class="cheat-item"><b>Not a renamed analyst</b><span>An analyst answers a question; an analytics engineer builds the table the answer comes from.</span></div>
+      <div class="cheat-item"><b>Not a junior data engineer</b><span>One owns infrastructure and scale, the other owns business meaning. Different failures, different reviewers.</span></div>
+      <div class="cheat-item"><b>The measured baseline</b><span>Bazaar by hand: 8 SQL files, 27 checks. As dbt: 23 models, 100 tests, build in 1.22s. Revenue 111,906.48 both ways.</span></div>
+      <div class="cheat-item"><b>The categories outlive the tools</b><span>Reviewable transformations, derived dependencies, assertions that always run, generated docs. Next: <a href="a2-models-as-code.html">a2</a>, what it costs to get them.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 1 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="../index.html">← All sessions</a> &nbsp;·&nbsp; <a href="a2-models-as-code.html">Next: Models as code →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

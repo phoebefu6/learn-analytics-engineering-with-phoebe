@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builder session 5 · Intermediate models - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Builder session 5 of 10</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Builder track · Session 5 of 10</div>
+    <h1>Intermediate models: <span class="accent">the layer nobody explains well</span></h1>
+    <p class="sub">Staging is forbidden to join. Marts are supposed to select and group, not derive. Everything that falls between those two rules lives in the intermediate layer, and this project has exactly three of them - materialized as nothing at all. Today you learn what belongs there, what <code>ephemeral</code> really costs, and how a warning that used to live in a wiki ("never join the two facts") became a model in the DAG with a test attached.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Builder track</span>
+      <span class="chip audience">Analytics engineers · analysts · DE</span>
+      <span class="chip audience">Runs in your browser · real DuckDB</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-17 · What the layer is for, and the three patterns</span>
+      <span class="a3" style="flex:5">17-42 · Build-along: prove ephemeral, then the fan-out guard</span>
+      <span class="a4" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Why this layer confuses everyone</h2>
+    </div>
+    <p class="lede">Staging and marts explain themselves. Staging is one model per source table, and a mart is something a person queries. Intermediate is defined by what it is <em>not</em>, which is why most projects either skip it (and grow marts full of duplicated derivation) or fill it with anything that felt awkward (and grow a middle layer nobody can name the purpose of).</p>
+    <p class="lede">There is a sharper definition, and this project follows it: an intermediate model exists when a piece of logic must happen <strong>exactly once</strong>, or when <strong>more than one mart</strong> needs it. Both tests are about duplication. Neither is about complexity - a two-line model belongs here if it stops a measure being re-derived in three places, and a hundred-line model does not belong here if only one mart will ever read it.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">▶ Live SQL - real DuckDB, editable</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A one-sentence test for whether something belongs in the intermediate layer, an honest account of <code>ephemeral</code> including how to debug a model that does not exist in the database, and the fan-out guard demonstrated twice - once inflating revenue to 121,003 and once holding it at 111,906.48.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: WHAT IT IS FOR ============ -->
+  <section class="section" id="purpose">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers community layering conventions, dbt documentation on models</span>
+      <h2>The joins staging cannot do, the maths marts should not repeat <span class="tag concept">7 min live</span></h2>
+    </div>
+    <p class="lede">Session b3 gave staging one rule and defended it hard: rename, recast, no joins. That rule is what makes eight staging models readable in an afternoon. But an order line on its own cannot tell you what it earned, because the commission rate lives on the merchant and the unit cost lives on the product. Somebody has to do that join. The only question is whether it happens once, in a place with a name, or three times, in three marts, slightly differently.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three layers: staging is forbidden to join, intermediate does the joins and roll-ups once, marts select and group without deriving">
+        <style>
+          .iT { font: 700 11.5px Inter, sans-serif; fill: #FFFFFF; }
+          .iH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .iC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .iHd { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .iN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .iArr { stroke: #F1855F; stroke-width: 2.5; fill: none; marker-end: url(#iAh); }
+        </style>
+        <defs>
+          <marker id="iAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#F1855F"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="26" width="828" height="72" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <rect x="42" y="42" width="132" height="28" rx="6" fill="#2B2B33"/>
+        <text class="iT" x="56" y="61">staging · 8 views</text>
+        <text class="iH" x="192" y="56">One model per source table. Rename, recast, no joins.</text>
+        <text class="iC" x="192" y="78">Forbidden to join, which is what keeps it cheap, disposable and obviously correct.</text>
+
+        <rect x="26" y="114" width="828" height="88" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <rect x="42" y="130" width="132" height="28" rx="6" fill="#D94E24"/>
+        <text class="iT" x="56" y="149">intermediate · 3</text>
+        <text class="iH" x="192" y="144">The joins staging is not allowed to do, and the roll-ups a mart should not repeat.</text>
+        <text class="iC" x="192" y="166">Ephemeral: inlined as a CTE into whatever refs it. Nothing materialized, nothing to refresh.</text>
+        <text class="iC" x="192" y="186">Money is computed here ONCE - commission, cost, margin - so no mart re-derives it.</text>
+
+        <rect x="26" y="218" width="828" height="72" rx="9" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <rect x="42" y="234" width="132" height="28" rx="6" fill="#3F7F72"/>
+        <text class="iT" x="56" y="253">marts · 12 tables</text>
+        <text class="iH" x="192" y="248">Dimensions, facts and aggregates people query. Select and group, do not derive.</text>
+        <text class="iC" x="192" y="270">If a mart is re-deriving a measure, the intermediate layer is missing a model.</text>
+
+        <path class="iArr" d="M108,98 L108,110"/>
+        <path class="iArr" d="M108,202 L108,214"/>
+
+        <rect x="26" y="306" width="828" height="86" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="iHd" x="46" y="332">The test for whether something belongs in the intermediate layer:</text>
+        <text class="iN" x="46" y="356">more than one mart needs it, or it must happen exactly once. Both are true of commission,</text>
+        <text class="iN" x="46" y="378">and both are true of the fan-out guard - which is why both are models rather than comments.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the layer defined by two rules it sits between</figcaption>
+    </figure>
+
+    <p>This project's three intermediate models are deliberately three different patterns rather than three of the same thing. Learn the patterns and you will recognise them in any project:</p>
+
+    <table class="clean">
+      <thead><tr><th>Model</th><th>The pattern</th><th>What it does once, so nothing downstream repeats it</th><th>Consumed by</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>int_order_lines_enriched</code></td>
+          <td><strong>The enrichment join</strong></td>
+          <td>Joins order lines to orders, products and merchants, then computes <code>commission_amount</code>, <code>cost_amount</code> and <code>margin_amount</code>. Money is derived here and nowhere else.</td>
+          <td><code>fct_order_items</code></td>
+        </tr>
+        <tr>
+          <td><code>int_cart_contents</code></td>
+          <td><strong>The roll-up, plus a documented choice</strong></td>
+          <td>Rolls cart items up to one row per cart, and picks each cart's dominant merchant - the one on its highest-value line. That pick is a modeling decision with a cost, so it is written down.</td>
+          <td><code>fct_carts</code></td>
+        </tr>
+        <tr>
+          <td><code>int_payments_per_order</code></td>
+          <td><strong>The fan-out guard</strong></td>
+          <td>Aggregates 1,060 payment attempts to one row per order, so nothing can join two facts at different grains and double the revenue.</td>
+          <td>the singular test <code>assert_payments_never_fan_out_revenue</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The fan-out guard: a wiki warning turned into a model<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The hand-written version of this warehouse had a sentence in its documentation: <em>never join <code>fct_order_items</code> to <code>fct_transactions</code></em>. It was correct, it was prominent, and it was completely unenforceable. An order line is one grain, a payment attempt is another, and an order with a decline followed by a successful retry appears twice on the payments side. Join them on <code>order_id</code> and every line on that order is duplicated - so the revenue you sum is money that was never taken.</p>
+        <p>In this project that sentence is a model. <code>int_payments_per_order</code> aggregates the attempts down to one row per order first, which is the only shape that can safely be joined to the sales fact. Three things change once the correct shape has a name:</p>
+        <ul>
+          <li><strong>It is reusable.</strong> Anybody who needs payment context per order refs the model instead of writing their own <code>GROUP BY</code> and getting the aggregation subtly wrong.</li>
+          <li><strong>It is testable.</strong> The singular test <code>assert_payments_never_fan_out_revenue</code> joins the fact to this model and fails the build if the total moves by more than a cent. A warning in a wiki cannot fail a build.</li>
+          <li><strong>It is discoverable.</strong> The model's own header comment explains why it exists, and it sits in the DAG next to the thing it protects. Documentation you have to go looking for is documentation nobody reads.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The pattern, stated generally</strong>
+          Aggregate first, then join. Any time two facts are joined directly, one of them needs an intermediate model that reduces it to the other's grain - or the join needs to go through a conformed dimension instead. This is the headline of the session and you will run both versions in a minute.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Computing money once, and what "once" is worth<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>int_order_lines_enriched</code> computes three derived measures in three lines of SQL:</p>
+        <ul>
+          <li><code>commission_amount</code> is <code>net_amount</code> times the merchant's <code>commission_pct</code> - which means it needs the merchant, which means it needs a join.</li>
+          <li><code>cost_amount</code> is <code>quantity</code> times the product's <code>unit_cost</code> - which needs the product.</li>
+          <li><code>margin_amount</code> is <code>net_amount</code> minus that cost.</li>
+        </ul>
+        <p>Put those three lines in the intermediate layer and margin has exactly one definition in the whole estate. Leave them out and each of the twelve marts that wants margin writes its own version, and the versions drift: one rounds before summing, another after; one uses <code>gross_amount</code> because it read the column list too fast. Then somebody asks why the merchant scorecard and the finance dashboard disagree by 40 dollars, and the answer takes two days to find.</p>
+        <p>The measurable version: settled margin in this project is <strong>46.89%</strong> of net revenue, and there is precisely one place in 23 models where that percentage could be made wrong. You will query it shortly.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Naming, and the cost written next to a choice<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The convention is <code>int_&lt;entity&gt;_&lt;verb&gt;</code>: <code>int_order_lines_enriched</code>, <code>int_cart_contents</code>, <code>int_payments_per_order</code>. The verb matters more than it looks, because it tells a reader what happened to the grain. <em>Enriched</em> means the grain did not change and columns were added. <em>Per order</em> means the grain changed. A reviewer who sees <code>int_payments_per_order</code> in a mart's <code>ref()</code> list knows immediately what shape arrives.</p>
+        <p>The second convention is harder and matters more: <strong>when a model makes a choice, the choice gets documented where the consumer will see it.</strong> <code>int_cart_contents</code> credits an entire cart to its dominant merchant, which means a cart containing two merchants' products credits all of its abandoned value to one of them. That is a real limitation, so it is written into <code>_marts__models.yml</code> on <code>fct_carts.merchant_sk</code> as a known limitation - not left in a Slack thread.</p>
+        <p>In Bazaar's current data every cart happens to contain products from a single merchant, so today the choice costs nothing at all. That is exactly why it must be written down: the day mixed carts appear, the mart quietly changes meaning and nothing in the build will complain. You will measure this in Demo 2, Q2.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: EPHEMERAL ============ -->
+  <section class="section" id="ephemeral">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers dbt documentation on materializations and ephemeral</span>
+      <h2>Ephemeral, honestly <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">All three intermediate models are configured <code>materialized: ephemeral</code>, set once for the whole folder in <code>dbt_project.yml</code>. Ephemeral means dbt does not build the model at all. Instead it takes the model's SQL and pastes it as a common table expression into the top of every model that <code>ref()</code>s it. Nothing is created, nothing needs refreshing, and nobody can query a half-finished shape by accident, because there is nothing there to query.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 382" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="An ephemeral model is inlined as a CTE into every consumer, so nothing exists in the database; the cost is duplicated SQL and harder debugging">
+        <style>
+          .eT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .eM { font: 400 11px ui-monospace, Menlo, monospace; fill: #22222A; }
+          .eC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .eB { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .eG { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+          .eN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .eArr { stroke: #D94E24; stroke-width: 2.5; fill: none; marker-end: url(#eAh); }
+        </style>
+        <defs>
+          <marker id="eAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#D94E24"/>
+          </marker>
+        </defs>
+
+        <rect x="26" y="28" width="250" height="36" rx="8" fill="#D94E24"/>
+        <text class="eT" x="42" y="52">1 · one model file</text>
+        <rect x="26" y="72" width="250" height="92" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="eM" x="40" y="96">int_order_lines_enriched</text>
+        <text class="eM" x="40" y="116">materialized: ephemeral</text>
+        <text class="eM" x="40" y="136">joins 4 staging models</text>
+        <text class="eC" x="40" y="157">written once, reviewed once</text>
+
+        <rect x="312" y="28" width="250" height="36" rx="8" fill="#2B2B33"/>
+        <text class="eT" x="328" y="52">2 · pasted into consumers</text>
+        <rect x="312" y="72" width="250" height="92" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="eM" x="326" y="96">with __dbt__cte__int_... as (</text>
+        <text class="eM" x="326" y="116">  the whole model SQL</text>
+        <text class="eM" x="326" y="136">) select ... from lines</text>
+        <text class="eC" x="326" y="157">a copy inside every consumer</text>
+
+        <rect x="598" y="28" width="256" height="36" rx="8" fill="#3F7F72"/>
+        <text class="eT" x="614" y="52">3 · what the database has</text>
+        <rect x="598" y="72" width="256" height="92" rx="6" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="eM" x="612" y="96">objects named int_%  =  0</text>
+        <text class="eM" x="612" y="116">20 objects, 23 models</text>
+        <text class="eM" x="612" y="136">nothing to keep fresh</text>
+        <text class="eC" x="612" y="157">nothing to misuse by accident</text>
+
+        <path class="eArr" d="M276,110 L308,110"/>
+        <path class="eArr" d="M562,110 L594,110"/>
+
+        <rect x="26" y="182" width="406" height="104" rx="9" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="eB" x="44" y="208">The honest cost</text>
+        <text class="eC" x="44" y="230">the SQL is duplicated into every consumer</text>
+        <text class="eC" x="44" y="250">it is not in the database, so debugging is harder</text>
+        <text class="eC" x="44" y="270">read target/compiled/ instead of the warehouse</text>
+
+        <rect x="448" y="182" width="406" height="104" rx="9" fill="#E8F3F0" stroke="#E6E4E9"/>
+        <text class="eG" x="466" y="208">Promote it to a table when</text>
+        <text class="eC" x="466" y="230">more than a handful of models consume it</text>
+        <text class="eC" x="466" y="250">or it is expensive and gets recomputed each time</text>
+        <text class="eC" x="466" y="270">it is one config line: materialized: table</text>
+
+        <rect x="26" y="304" width="828" height="60" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="eN" x="46" y="330">Ephemeral is the default for this layer because plumbing should not be queryable. Change it the</text>
+        <text class="eN" x="46" y="352">day the duplication or the recompute costs more than the accident it is preventing.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - inlined, not built, and what that trade costs</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>How to debug a model that is not in the database<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>This is the real cost of ephemeral, and the reason people abandon it after one bad afternoon. Your usual debugging move is to run <code>select * from the_model limit 10</code> and look. With an ephemeral model there is nothing to select from - the name does not exist in the warehouse at all. Three moves replace it, in order of how often you will need them:</p>
+        <ul>
+          <li><strong><code>dbt compile --select int_order_lines_enriched</code>, then read <code>target/compiled/</code>.</strong> The compiled file contains the model's own SQL, fully resolved, ready to paste into any SQL client. This is the answer 90% of the time, and it is the single most useful debugging habit in dbt.</li>
+          <li><strong>Read the consumer's compiled SQL instead.</strong> Open <code>target/compiled/bazaar/models/marts/fct_order_items.sql</code> and the intermediate model is right there at the top as <code>with __dbt__cte__int_order_lines_enriched as (...)</code>. That is not a paraphrase of what dbt did, it is what dbt handed DuckDB. Session b4's explorer shows the same thing side by side with the Jinja.</li>
+          <li><strong>Flip it to a view for one afternoon.</strong> Change the config to <code>materialized: view</code>, rebuild, poke at it with a normal query, then change it back. It is one line, and there is no shame in it.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The habit worth forming</strong>
+          When a model is wrong, do not stare at the Jinja. Compile it and read the SQL the warehouse actually received. Roughly half of all "dbt is behaving strangely" reports resolve themselves in the first ten seconds of reading compiled output.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The other cost: duplicated SQL, and when it starts to hurt<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>An ephemeral model with two consumers is compiled into two queries, each containing a full copy of its SQL. That is fine at two. At eight consumers you have eight copies of the same joins, and three things go wrong at once:</p>
+        <ul>
+          <li><strong>The warehouse recomputes it eight times.</strong> On DuckDB and 1,434 rows this is unmeasurable. On a billion-row table in a warehouse you pay per query for, it is the whole bill.</li>
+          <li><strong>Compiled queries get enormous.</strong> Nested ephemeral models compound, and a 2,000-line compiled query is not something you can read when you need to.</li>
+          <li><strong>Query plans get worse, not better.</strong> Optimisers cope well with a table and less well with the same subquery eight times.</li>
+        </ul>
+        <p>The fix is one line. <code>materialized: table</code> in the model's config, and the same SQL now builds an object once and everybody selects from it. Nothing else in the project changes, because every consumer already goes through <code>ref()</code> - which is the point of session b4. The model's name stays, so no downstream SQL is edited.</p>
+        <p>The trade you are accepting when you promote it: the shape becomes queryable, so somebody will find it and build on it, and now you own a half-finished thing as an interface. That is usually the moment to ask whether it should have been a mart with documentation and tests all along.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The four materializations, and where ephemeral sits<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Materialization is dbt's answer to "what object should this SELECT become". There are four in core use, and this project uses three of them:</p>
+        <ul>
+          <li><strong><code>view</code></strong> - a view, rebuilt in milliseconds, always fresh, recomputed on every read. All 8 staging models. Cheap to build, and the cost moves to whoever queries it.</li>
+          <li><strong><code>table</code></strong> - dropped and recreated in full on every run. All 12 marts. Expensive to build, fast to query, and simple enough that nothing about it can surprise you.</li>
+          <li><strong><code>ephemeral</code></strong> - not built at all, inlined as a CTE. The 3 intermediate models. Zero storage, zero refresh, and zero ability to inspect it directly.</li>
+          <li><strong><code>incremental</code></strong> - a table that only processes new or changed rows. Not used here, on purpose. Done properly it needs a dataset far larger than 985 orders, and the interesting parts (merge strategies, late-arriving rows, backfills, warehouse-specific tuning) are out of scope for this course. Named in b2 with the trade-off stated.</li>
+        </ul>
+        <p>The useful mental model: materialization is a performance and safety decision, not a modeling decision. The same SELECT is correct under all four. You choose between them based on how often it is read, how expensive it is to compute, and whether anybody should be able to query it directly - and you can change your mind later with one line, because <code>ref()</code> hides the difference from everything downstream.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO 1 ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Demo 1 of 2</span>
+      <h2>Prove it is not there, then double the revenue <span class="tag demo">★ 14 min · everyone builds</span></h2>
+    </div>
+    <p class="lede">These editors run <strong>real DuckDB</strong> in your browser with this project already built from dbt's own compiled SQL. First we prove the ephemeral models genuinely do not exist. Then we do the thing the wiki said not to do, watch revenue inflate by nine thousand dollars, and fix it with the shape <code>int_payments_per_order</code> provides.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Prove the absence.</strong> Three intermediate models, zero objects in the database. Twenty objects for twenty-three models.</p></div>
+      <div class="step"><p><strong>Find the money they computed.</strong> Commission, cost and margin were derived in an ephemeral model and landed in the fact table. One definition, one place.</p></div>
+      <div class="step"><p><strong>Break it on purpose.</strong> Join the sales fact to the payments fact on <code>order_id</code>. Revenue goes from 111,906.48 to 121,003 and nothing errors.</p></div>
+      <div class="step"><p><strong>Fix it with the guard.</strong> Aggregate the payments to one row per order first, join that, and revenue comes back to the cent.</p></div>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Zero objects named int_anything, 20 objects total for 23 models. The three intermediate models exist only inside the SQL of whatever referenced them.">
+      <pre class="sql-src">SELECT count(*) FILTER (WHERE table_name LIKE 'int_%') AS objects_named_int,
+       count(*)                                        AS objects_total
+FROM information_schema.tables
+WHERE table_schema IN ('main_staging', 'main_marts');</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="Commission, cost and margin were computed once in int_order_lines_enriched and carried into the fact. Settled margin is 46.89% of net revenue, defined in exactly one place.">
+      <pre class="sql-src">SELECT round(sum(net_amount), 2)        AS net_revenue,
+       round(sum(commission_amount), 2) AS commission,
+       round(sum(cost_amount), 2)       AS cost_of_goods,
+       round(sum(margin_amount), 2)     AS margin,
+       round(100.0 * sum(margin_amount) / sum(net_amount), 2) AS margin_pct
+FROM main_marts.fct_order_items
+WHERE is_settled;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="The forbidden join. Two facts, two grains: an order with a decline and a successful retry appears twice on the payments side, so its lines duplicate. Revenue inflates from 111,906.48 to 121,003 and DuckDB reports no problem at all.">
+      <pre class="sql-src">SELECT (SELECT count(*) FROM main_marts.fct_order_items WHERE is_settled)                 AS fact_rows_before,
+       count(*)                                                                           AS rows_after_join,
+       (SELECT round(sum(net_amount), 2) FROM main_marts.fct_order_items WHERE is_settled) AS revenue_before,
+       round(sum(f.net_amount), 2)                                                        AS revenue_after_join
+FROM main_marts.fct_order_items f
+JOIN main_marts.fct_transactions t ON t.order_id = f.order_id
+WHERE f.is_settled;</pre>
+    </div>
+
+    <div class="sqlbox" data-setup="built" data-caption="The guard, written out: this CTE is int_payments_per_order. One row per order on the payments side, so the join cannot multiply anything. Row count unchanged, revenue back to 111,906.48, and payment context available per line.">
+      <pre class="sql-src">WITH int_payments_per_order AS (
+    SELECT order_id,
+           count(*)         AS payment_attempts,
+           sum(is_approved) AS approvals
+    FROM main_staging.stg_bazaar__transactions
+    GROUP BY order_id
+)
+SELECT count(*)                          AS fact_rows,
+       round(sum(f.net_amount), 2)       AS net_revenue,
+       round(avg(p.payment_attempts), 3) AS avg_attempts_per_line
+FROM main_marts.fct_order_items f
+LEFT JOIN int_payments_per_order p ON p.order_id = f.order_id
+WHERE f.is_settled;</pre>
+    </div>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>Nine thousand dollars of revenue that does not exist, from a join that looked completely reasonable.</strong> No error, no warning, no null, no failed test - unless somebody wrote the test. This is the failure mode that makes people distrust a warehouse, and it is almost never caught by the person who introduces it, because the number moves in the direction everyone was hoping for. The intermediate layer is where you put the correct shape so that the reasonable-looking join is not the one that is available; session b7 shows the singular test that fails the build if anybody removes it.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 ============ -->
+  <section class="section" id="demo-2">
+    <div class="section-kicker">
+      <span class="klabel">Demo 2 of 2</span>
+      <h2>Your turn: rebuild one, then price a modeling choice <span class="tag demo">★ 10 min · build your own</span></h2>
+    </div>
+    <p class="lede">An ephemeral model is just SQL that got pasted somewhere. So you can always rebuild it by hand and check that what the fact table carries is what the model computed.</p>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Q1 · Rebuild the ephemeral model and check it agrees<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Here is the commission line of <code>int_order_lines_enriched</code>, computed from staging by hand and compared line by line with what <code>fct_order_items</code> carries. If the intermediate model is doing what it claims, every one of the 1,434 lines agrees exactly.</p>
+        <div class="sqlbox" data-setup="built" data-caption="1,434 lines checked, 1,434 agreeing. The ephemeral model is not magic - it is this SQL, inlined into the fact table's compiled query.">
+          <pre class="sql-src">WITH int_order_lines_enriched AS (
+    SELECT lines.order_id,
+           lines.line_no,
+           round(lines.net_amount * merchants.commission_pct, 2) AS commission_amount
+    FROM main_staging.stg_bazaar__order_items lines
+    JOIN main_staging.stg_bazaar__merchants merchants
+      ON merchants.merchant_id = lines.merchant_id
+)
+SELECT count(*) AS lines_checked,
+       sum(CASE WHEN i.commission_amount = f.commission_amount THEN 1 ELSE 0 END) AS agreeing
+FROM int_order_lines_enriched i
+JOIN main_marts.fct_order_items f
+  ON f.order_id = i.order_id AND f.line_no = i.line_no;</pre>
+        </div>
+        <p>Try changing <code>round(..., 2)</code> to no rounding at all and run it again. The agreement count collapses, which is a small demonstration of why rounding belongs in one model rather than in every consumer.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Q2 · What does the dominant-merchant choice cost today?<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><code>int_cart_contents</code> credits each cart to a single merchant. Before defending or attacking that decision, measure it: how many carts actually contain more than one merchant's products?</p>
+        <div class="sqlbox" data-setup="built" data-caption="Every cart in Bazaar contains exactly one merchant's products, so the dominant-merchant pick currently loses nothing. The limitation is latent, not active - which is the most dangerous kind.">
+          <pre class="sql-src">WITH cart_merchants AS (
+    SELECT ci.cart_id, count(DISTINCT p.merchant_id) AS merchants_in_cart
+    FROM main_staging.stg_bazaar__cart_items ci
+    JOIN main_staging.stg_bazaar__products p ON p.product_id = ci.product_id
+    GROUP BY ci.cart_id
+)
+SELECT merchants_in_cart,
+       count(*) AS carts,
+       round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct_of_carts
+FROM cart_merchants
+GROUP BY 1
+ORDER BY 1;</pre>
+        </div>
+        <p>So the choice is free right now and will not stay free. When a marketplace adds a shared basket, this model starts attributing one merchant's abandonment to another and the build stays green throughout. The honest response is not to fix it today - it is to have the limitation written on the column, which it is, and to add the test that would notice. Session b7 is where you write that test.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Q3 · Which of these three would you promote to a table, and when?<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>No SQL. Think about each model against the two criteria - number of consumers, and cost to compute:</p>
+        <ul>
+          <li><strong><code>int_order_lines_enriched</code></strong> has one consumer today and joins four staging models. At Bazaar's size, ephemeral is obviously right. Scale the order lines to 500 million and the same model is recomputed inside <code>fct_order_items</code> on every single run, and you are paying to re-join four tables for a result you already had. That is the classic promote-to-table case, and at that size it is usually the incremental case too.</li>
+          <li><strong><code>int_cart_contents</code></strong> has one consumer and does a window function over cart items. Same answer, same reasoning, arriving sooner because window functions are the expensive part.</li>
+          <li><strong><code>int_payments_per_order</code></strong> is the interesting one. Its only consumer is a <em>test</em>. Should something exist as a model when no mart reads it? Yes, and it is worth being able to argue why: the model is how the correct shape gets a name, a home in the DAG, and a place for the comment explaining the trap. The day an analyst needs payment context per order, the right thing already exists and is already tested. A model that prevents a mistake is earning its keep even with zero downstream marts.</li>
+        </ul>
+        <p>The general rule to take to your own project: promote when more than a handful of models consume it, or when it is expensive enough that recomputing it per consumer shows up on the bill. Until one of those is true, ephemeral keeps your database free of shapes that were never meant to be interfaces.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Try it yourself - this week <span class="tag exercise">◐ 20-30 min total</span></h2>
+    </div>
+    <ul>
+      <li>Run <code>dbt compile --select int_payments_per_order</code> on the cloned project and read the file it writes into <code>target/compiled/</code>. Then read <code>target/compiled/bazaar/models/marts/fct_order_items.sql</code> and find the CTE at the top. That is ephemeral, seen twice from two directions.</li>
+      <li>Change one intermediate model to <code>materialized: table</code>, rebuild, and count the objects in the database again. Nothing downstream needs editing, because everything goes through <code>ref()</code>. Change it back.</li>
+      <li>Grep your own project for a derived measure - margin, commission, contribution, anything with arithmetic in it - and count how many models compute it. If the answer is more than one, you have found your first intermediate model.</li>
+      <li>Find two facts at different grains in your own warehouse and check whether anything joins them directly. A dashboard, a saved query, a reverse-ETL sync. If something does, you have inflated numbers in production right now.</li>
+      <li>Write down one modeling choice in your estate that is currently free but will not stay free, the way the dominant-merchant pick is. Put it in a column description this week, and bring it to b7 as a candidate test.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">dbt documentation - materializations, and <code>ephemeral</code> in particular</span><span class="note">Part 2 + Demo 1 · proved by absence in <code>information_schema</code>, with the debugging workflow</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Community layering conventions - what belongs in the intermediate layer, and naming</span><span class="note">Part 1 · the two-part test, plus this project's three models as three patterns</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - grain, and why two facts at different grains cannot be joined</span><span class="note">Demo 1 · the pattern is implemented here; it is <em>designed</em> in <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a></span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Incremental models at scale, and warehouse-specific tuning</span><span class="note">Named plainly as out of scope · they need a dataset far larger than 985 orders and the interesting parts are vendor-specific</span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · What does <code>materialized: ephemeral</code> actually do?</p>
+      <button class="qopt" type="button">A · Builds a temporary table that is dropped at the end of the run</button>
+      <button class="qopt" type="button">B · Builds a view instead of a table</button>
+      <button class="qopt" type="button">C · Builds nothing - dbt pastes the model's SQL as a CTE into every model that refs it</button>
+      <p class="qwhy">Nothing is created, so nothing needs refreshing and nobody can query a half-finished shape by accident. The proof is in Demo 1: zero objects named <code>int_%</code>, 20 objects for 23 models.</p>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">2 · Joining <code>fct_order_items</code> to <code>fct_transactions</code> on <code>order_id</code> takes revenue from 111,906.48 to 121,003. Why?</p>
+      <button class="qopt" type="button">A · The payments fact contains refunds that get counted twice</button>
+      <button class="qopt" type="button">B · The two facts are at different grains - an order with a decline and a retry appears twice on the payments side, so its lines duplicate</button>
+      <button class="qopt" type="button">C · The join is missing a date condition</button>
+      <p class="qwhy">Aggregate first, then join. <code>int_payments_per_order</code> reduces the attempts to one row per order, which is the only shape that can safely meet the sales fact - and a singular test fails the build if that stops being true.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · You need to debug an ephemeral model. What is the first move?</p>
+      <button class="qopt" type="button">A · <code>dbt compile</code> and read the SQL in <code>target/compiled/</code></button>
+      <button class="qopt" type="button">B · Query the model in the warehouse and inspect the rows</button>
+      <button class="qopt" type="button">C · Add tests to the model and run <code>dbt test</code></button>
+      <p class="qwhy">B is impossible - the model is not in the warehouse. Reading compiled output is the fastest debugging move in dbt generally, and with ephemeral models it is the only direct one. You can also read the consumer's compiled SQL and find the model inlined at the top as a CTE.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Builder session 5 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The test</b><span>More than one mart needs it, or it must happen exactly once. Complexity is irrelevant.</span></div>
+      <div class="cheat-item"><b>Ephemeral</b><span>Built as nothing. dbt pastes the SQL as a CTE into every consumer.</span></div>
+      <div class="cheat-item"><b>What it buys</b><span>No storage, no refresh, and nobody can query a half-finished shape.</span></div>
+      <div class="cheat-item"><b>What it costs</b><span>Duplicated SQL per consumer, and no object to inspect. Read target/compiled/.</span></div>
+      <div class="cheat-item"><b>Promote when</b><span>More than a handful of consumers, or expensive to recompute. One config line.</span></div>
+      <div class="cheat-item"><b>Money once</b><span>int_order_lines_enriched derives commission, cost and margin. Margin: 46.89%.</span></div>
+      <div class="cheat-item"><b>The fan-out guard</b><span>Aggregate first, then join. Joining the two facts inflates 111,906.48 to 121,003.</span></div>
+      <div class="cheat-item"><b>Document the choice</b><span>int_cart_contents picks one merchant per cart. Free today, not forever. Next: b6.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Builder session 5 of 10 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="b4-ref-and-the-dag.html">← Previous: ref() and the DAG</a> &nbsp;·&nbsp; <a href="b6-dimensions-facts-snapshots.html">Next: Dimensions, facts, snapshots →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/bazaar-raw.js?v=1"></script>
+<script src="../assets/dbt-models.js?v=2"></script>
+<script src="../assets/ae-live.js?v=1"></script>
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>

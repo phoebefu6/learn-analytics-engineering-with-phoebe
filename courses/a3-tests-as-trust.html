@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leader session 3 · Tests as the trust budget - learn analytics engineering with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-analytics-engineering-with-phoebe</a> / Leader session 3 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Analytics Engineering with Phoebe · Leader track · Session 3 of 6</div>
+    <h1>Tests as the <span class="accent">trust budget</span></h1>
+    <p class="sub">This is the governance session. A test suite is not developer hygiene, it is the artifact that decides whether a wrong number reaches a stakeholder, and it is one of the very few data-quality claims you can put a number against. This course's project carries 100 tests on 23 models, and six realistic breakages were applied to it as real damage: with no tests, 0 of 6 were caught. With cheap one-line tests, 4 of 6. With five hand-written assertions as well, 6 of 6. The two that only the assertions catch are the two where the shape was perfect and the meaning had moved, and they are the expensive class.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Leader track</span>
+      <span class="chip audience">Heads of data · analytics leads · stakeholders</span>
+      <span class="chip audience">No code to write</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-16 · What a suite buys, measured</span>
+      <span class="a4" style="flex:5">16-30 · Shape, meaning, and who owns which</span>
+      <span class="a3" style="flex:4">30-42 · Discussion: the trust-budget audit</span>
+      <span class="a1" style="flex:1">42-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Why this is the governance session</h2>
+    </div>
+    <p class="lede">Session <a href="a2-models-as-code.html">a2</a> closed on an uncomfortable sentence: models as code makes a good model cheaper to maintain and a bad model faster to spread everywhere, in seconds, on the next build. This session is about the thing that stops the second half of that sentence, and it is the one part of the analytics-engineering story that you can hold a team accountable for numerically.</p>
+    <p class="lede">Most data-quality conversations at leadership level are unfalsifiable. Somebody asserts the data is trustworthy, somebody else asserts it is not, and nothing in the room can settle it. A test suite changes that, because a test is a claim about the data that either holds or does not, recorded every time the estate is rebuilt. Read that way, the suite is a <strong>governance artifact</strong>: an inventory of what your organisation has committed to being true, plus a record of every time one of those commitments failed.</p>
+    <p class="lede">Everything measured on this page comes from this course's own project: the Bazaar marketplace warehouse, 23 models, 100 tests (95 cheap generic ones and 5 hand-written assertions), 1 snapshot, 8 declared sources. A full build reports PASS=121, WARN=0, ERROR=0 in 1.22 seconds. The same warehouse also exists hand-written, as 8 SQL files plus a Python validator with 27 checks, and both produce settled net revenue of 111,906.48 over 957 orders, AOV 116.93. The six-breakage measurement below was run against the real project, not estimated.</p>
+    <div class="legend">
+      <span class="pill solid">Live - presented in session</span>
+      <span class="pill light">Self-study - read after class</span>
+      <span class="pill peach">◆ Discussion - run it with your own team</span>
+      <span class="pill inkpill">Sources covered</span>
+    </div>
+    <div class="callout win">
+      <strong>★ What you walk out with today</strong>
+      A measured answer to "what does a test suite actually buy us", the distinction between shape errors and meaning errors and why the second class is the expensive one, a rule for what should block a build versus warn, a clear split of who owns which test, and three things you can check about your own suite without reading a line of SQL.
+    </div>
+  </section>
+
+  <!-- ============ PART 1: MEASURED ============ -->
+  <section class="section" id="measured">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the dbt testing documentation, read as governance</span>
+      <h2>What a suite buys, measured <span class="tag concept">13 min live</span></h2>
+    </div>
+    <p class="lede">The mechanism is worth thirty seconds even though you will never write one. A test is a query that selects the rows that should not exist. If it returns nothing, the test passes; if it returns rows, the test failed and the build stops. That is the whole idea, and its simplicity is why tests can live beside the models and run every single time rather than when somebody remembers.</p>
+    <p class="lede">Which means the interesting question is not how tests work. It is what a suite is worth, and that is answerable. Six realistic breakages were applied to this project as real damage - a retried load creating duplicates, a widened column, a key that stops resolving, a source edited after the build, a metric definition changed without a rename, an aggregate that quietly disagrees with the fact it summarises - and the suite was re-run against each one at three levels of coverage.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 332" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Measured coverage of six realistic breakages at three levels of testing: none catches zero, generic catches four, generic plus singular catches six">
+        <style>
+          .mdT { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+          .mdBig { font: 800 26px Inter, sans-serif; fill: #22222A; }
+          .mdC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .mdK { font: 700 11.5px Inter, sans-serif; fill: #D94E24; }
+          .mdH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .mdN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+        </style>
+
+        <rect x="26" y="26" width="264" height="40" rx="8" fill="#2B2B33"/>
+        <text class="mdT" x="42" y="51">No tests at all</text>
+        <rect x="26" y="66" width="264" height="130" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="mdBig" x="42" y="102">0 of 6</text>
+        <text class="mdC" x="42" y="128">What most hand-written estates</text>
+        <text class="mdC" x="42" y="146">really have: a validator that</text>
+        <text class="mdC" x="42" y="164">somebody remembers to run.</text>
+        <text class="mdK" x="42" y="186">Costs nothing. Buys nothing.</text>
+
+        <rect x="308" y="26" width="264" height="40" rx="8" fill="#D94E24"/>
+        <text class="mdT" x="324" y="51">Cheap generic tests</text>
+        <rect x="308" y="66" width="264" height="130" rx="8" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="mdBig" x="324" y="102">4 of 6</text>
+        <text class="mdC" x="324" y="128">95 one-line declarations: keys</text>
+        <text class="mdC" x="324" y="146">unique, keys present, lookups</text>
+        <text class="mdC" x="324" y="164">resolve, values declared.</text>
+        <text class="mdK" x="324" y="186">Costs minutes. Buys shape.</text>
+
+        <rect x="590" y="26" width="264" height="40" rx="8" fill="#3F7F72"/>
+        <text class="mdT" x="606" y="51">Generic plus 5 assertions</text>
+        <rect x="590" y="66" width="264" height="130" rx="8" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="mdBig" x="606" y="102">6 of 6</text>
+        <text class="mdC" x="606" y="128">Five hand-written checks that</text>
+        <text class="mdC" x="606" y="146">somebody sat down and thought</text>
+        <text class="mdC" x="606" y="164">about, one per incident class.</text>
+        <text class="mdK" x="606" y="186">Costs hours. Buys meaning.</text>
+
+        <rect x="26" y="220" width="828" height="96" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="mdH" x="46" y="246">The middle column is where most teams stop, and it is where trust is lost</text>
+        <text class="mdN" x="46" y="270">Measured on this course's own project: 100 tests over 23 models, six realistic breakages applied as real</text>
+        <text class="mdN" x="46" y="290">damage, the suite re-run each time. Generic tests are one line and feel like progress, so they get added</text>
+        <text class="mdN" x="46" y="310">quickly. The last two breakages need an assertion a human thought about, and those get skipped.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three levels of coverage against six real breakages, measured not estimated</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>How to read a suite as a governance artifact<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Stop thinking of the suite as quality-assurance work and start thinking of it as a register of commitments. Every test in it is a sentence of the form "this must be true about our data, and if it stops being true we want the build to stop". Read that way, three properties of a suite matter to you and none of them require SQL:</p>
+        <ul>
+          <li><strong>Coverage tells you where you are exposed.</strong> Not a percentage, which is a meaningless number here. A list: which models have zero tests. A model with no tests is a model your organisation has made no claims about, and if a reported figure depends on it, that is an unhedged position rather than an oversight.</li>
+          <li><strong>Composition tells you what class of failure you are protected from.</strong> A suite that is entirely cheap generic tests protects you from broken shapes and not at all from wrong meaning. This project's ratio is 95 generic to 5 hand-written, and the 5 are what took it from 4 of 6 to 6 of 6.</li>
+          <li><strong>Failure history tells you whether the suite is real.</strong> A suite that has never failed is either protecting a very stable estate or is not being run, and the second is far more common. A suite that fails constantly is being ignored, which is worse.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The governance framing, in one sentence</strong>
+          A test suite is the only data-quality claim in your organisation that is falsifiable, dated, and automatically re-checked. That is a rare thing, and it is worth treating with more seriousness than it usually gets.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why 100 tests is not a target and 23 models is not a denominator<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The moment you learn that a suite can be counted, the temptation is to set a target. Resist it, and resist a coverage percentage even harder, because both are trivially satisfiable in ways that make the estate worse.</p>
+        <p>Tests are cheap to add and nearly free to add badly. A team asked to raise a coverage number will add a not-null test on a column that is already part of a unique key, an accepted-values test on a field the business changes monthly, and a relationships test between two models one person owns end to end. All three pass, all three raise the number, none of them would ever catch anything you care about, and the third will start failing for legitimate business reasons and train everybody to ignore failures.</p>
+        <p>The useful question is per model and it is judgement, not arithmetic: <strong>for this model, can somebody name the failure that would embarrass us most, and is there a test for that specific failure?</strong> Ask it of your ten most consequential models and you will learn more than any coverage figure could tell you. This project arrived at 100 tests over 23 models without anybody setting a target, which is the only way that ratio means anything.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why the hand-written estate scored zero<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>It is worth being fair about this, because "0 of 6" sounds like an indictment of the people who wrote the hand-written version, and it is not. That version has a Python validator with 27 checks in it, and those checks are good checks. Several of them would catch several of the six breakages.</p>
+        <p>The zero comes from one structural fact: <strong>the validator is not attached to the build.</strong> It is a separate program a person runs. So the honest question is not whether the checks are good but how often they run, and in every organisation the answer is: reliably at first, then when something feels wrong, then almost never. Nobody decides to stop. It simply stops being the thing that happens under deadline pressure, and the checks that matter most are the ones you skip on the day you are in a hurry, which is also the day you are most likely to break something.</p>
+        <p>That is the actual difference between a validator and a test suite, and it is a process property rather than a technical one. A test that runs on every build has no opportunity to be skipped. Session <a href="a2-models-as-code.html">a2</a>'s environments practice is what makes that possible: if the estate can be rebuilt on demand, tests can be attached to the rebuild.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2: SHAPE VS MEANING ============ -->
+  <section class="section" id="classes">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · the load-bearing distinction</span>
+      <h2>Shape errors, meaning errors, and who owns which <span class="tag concept">9 min live</span></h2>
+    </div>
+    <p class="lede">There are exactly two classes of data failure that a suite can be aimed at, they need completely different tests, and they should be owned by different people. Most organisations protect themselves thoroughly against the cheap class and not at all against the expensive one, and the reason is entirely understandable: the cheap class is easy to test and easy to explain.</p>
+
+    <table class="clean">
+      <thead><tr><th>Failure class</th><th>What it looks like</th><th>What catches it</th><th>Who owns it</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Shape errors<br>(the cheap class)</td>
+          <td>Duplicate rows after a retried load. A key that is suddenly missing. A lookup that stops resolving, so an inner join quietly loses rows. A new status value appearing upstream while every dashboard filters on the old list.</td>
+          <td>One-line generic tests, declared once per column and reused everywhere: keys unique, keys present, foreign keys resolve, values within a declared set. 95 of this project's 100 tests are these, and they caught 4 of the 6 breakages.</td>
+          <td><strong>The data team.</strong> No business input needed. Nobody has to be consulted about whether an order id should be unique, so there is no excuse for these being absent.</td>
+        </tr>
+        <tr>
+          <td>Meaning errors<br>(the expensive class)</td>
+          <td>A definition changes without a rename, so revenue is 3.5% higher and the column is still called revenue. Somebody edits a source after the build, so the warehouse and the system of record disagree. An aggregate quietly stops matching the fact it summarises, creating a second version of the truth.</td>
+          <td>An assertion a human thought about: this total must still equal the source to the cent, this derived measure must still equal its own parts, this summary must still agree with the detail. Five of these took the project from 4 of 6 to 6 of 6.</td>
+          <td><strong>The business, with the data team.</strong> Only a business owner can say what the number must reconcile to, and a reconciliation assertion needs somebody who will answer the phone when it fires.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 368" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Shape errors versus meaning errors: what each looks like, what catches it, and who owns it">
+        <style>
+          .smT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .smL { font: 700 10.5px Inter, sans-serif; fill: #D94E24; }
+          .smC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .smH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .smN { font: 600 11.5px Inter, sans-serif; fill: #991B1B; }
+        </style>
+
+        <rect x="26" y="26" width="402" height="40" rx="8" fill="#D94E24"/>
+        <text class="smT" x="44" y="52">Shape errors · the cheap class</text>
+        <rect x="26" y="66" width="402" height="182" rx="8" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="smL" x="44" y="92">LOOKS LIKE</text>
+        <text class="smC" x="44" y="112">duplicate rows, a missing key, a lookup that</text>
+        <text class="smC" x="44" y="132">stops resolving, an undeclared status value</text>
+        <text class="smL" x="44" y="160">CAUGHT BY</text>
+        <text class="smC" x="44" y="180">one-line generic tests, declared per column</text>
+        <text class="smC" x="44" y="200">and reused. 95 of the 100 tests here.</text>
+        <text class="smL" x="44" y="228">OWNED BY</text>
+        <text class="smC" x="44" y="242">the data team, with no business input needed</text>
+
+        <rect x="452" y="26" width="402" height="40" rx="8" fill="#2B2B33"/>
+        <text class="smT" x="470" y="52">Meaning errors · the expensive class</text>
+        <rect x="452" y="66" width="402" height="182" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="smL" x="470" y="92">LOOKS LIKE</text>
+        <text class="smC" x="470" y="112">a definition changed without a rename, a source</text>
+        <text class="smC" x="470" y="132">edited after the build, a summary that drifted</text>
+        <text class="smL" x="470" y="160">CAUGHT BY</text>
+        <text class="smC" x="470" y="180">an assertion somebody thought about: this total</text>
+        <text class="smC" x="470" y="200">must still equal the source. 5 of the 100 here.</text>
+        <text class="smL" x="470" y="228">OWNED BY</text>
+        <text class="smC" x="470" y="242">the business, with the data team writing it</text>
+
+        <rect x="26" y="266" width="828" height="94" rx="9" fill="#FEF2F2" stroke="#F6C3B0"/>
+        <text class="smH" x="46" y="292">Why the second class is the expensive one</text>
+        <text class="smN" x="46" y="316">A meaning error has a perfect shape: no duplicates, no missing keys, no orphans, every value declared.</text>
+        <text class="smN" x="46" y="336">Every cheap test passes while the number is wrong, so nothing tells you, and the wrong number is used</text>
+        <text class="smN" x="46" y="356">to make decisions for as long as it takes a human to notice. That is how a mature warehouse loses trust.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - two classes, two kinds of test, two owners</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Why meaning errors are the ones that cost you<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Follow one of the six breakages through, because the shape of the incident is what makes the argument. A mart loses its settled-money filter. The column is still called net revenue, every row is well-formed, there are no duplicates, no missing keys, no orphaned references, no undeclared values. Revenue is 3.5% higher than it should be.</p>
+        <p>Every one of the 95 cheap tests passes, and they are right to pass, because nothing about the shape is wrong. The build is green. The dashboards refresh. The number goes into a weekly pack, and then into a monthly one. There is no incident, no alert and no failure, and there will not be until a human being who knows what the number should look like happens to look at it. In this project's measurement, that breakage and one other are the two that generic tests structurally cannot see.</p>
+        <p>Two consequences worth naming for a leadership audience:</p>
+        <ul>
+          <li><strong>The cost of a meaning error scales with how long it goes unnoticed</strong>, and there is nothing bounding that duration except somebody's intuition. A shape error is usually caught in hours because something visibly breaks. A meaning error can run for a quarter.</li>
+          <li><strong>These are not edge cases.</strong> A definition changing without a rename and a source being edited after the build are the two most ordinary ways a warehouse that has worked for years starts producing wrong numbers. They are what happens when an estate is healthy enough to be actively changed.</li>
+        </ul>
+        <div class="callout tip">
+          <strong>The single most valuable test in this project</strong>
+          A reconciliation: does settled revenue in the warehouse still equal the source system, to the cent? One assertion, and it is the one an auditor asks for. If you fund one test on your own estate this quarter, fund that one, on the number your business acts on most.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Who owns which test, and why the phone matters<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The ownership split is clean, and getting it wrong is the most common reason meaning tests do not exist.</p>
+        <p><strong>Shape tests belong entirely to the data team.</strong> Nobody needs to consult the business about whether an order identifier should be unique or whether a required key can be absent. These are engineering claims about a well-formed table, they are one line each, and there is no legitimate reason for a consequential model to lack them. If your team says the business has not told them what the rules are, they are describing a meaning test and calling it a shape test.</p>
+        <p><strong>Meaning tests need a business owner, by name.</strong> Only somebody accountable for the number can say what it must reconcile to, what tolerance is acceptable, and whether a 0.4% difference is a rounding artifact or a genuine failure. The data team writes it, but the claim is not theirs to make.</p>
+        <p>And here is the part that is easy to skip. <strong>A reconciliation assertion needs a business owner who will answer the phone.</strong> When that test fires at 3am, somebody has to decide whether the correct action is to fix the pipeline, restate the number, or accept the difference, and that is not an engineering decision. A reconciliation test with no named owner will fire once, get investigated by whoever is on duty, get no answer, and be downgraded or disabled within a fortnight. That is not a testing failure, it is a governance failure, and it is yours to prevent.</p>
+        <div class="callout tip">
+          <strong>The forward pointer</strong>
+          How this ownership split maps onto actual job titles, and who reviews whose model, is session <a href="a5-team-shape.html">a5</a>. Today all you need is the principle: the data team owns shape, the business owns meaning, and a meaning test without a named human is decoration.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The five assertions, in plain English<span class="mini">3 min read</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Five hand-written checks took this project from 4 of 6 to 6 of 6. None of them is clever, and every one of them started as an incident class somebody had lived through. In plain English:</p>
+        <ul>
+          <li><strong>Reconcile to the source.</strong> Settled revenue in the warehouse must still equal the source system, to the cent. The single most valuable assertion in the project and the one auditors ask for by name.</li>
+          <li><strong>A derived number must equal its own parts.</strong> If net is defined as gross less discount, then it must still be exactly that. A derived measure that has drifted from its own definition means the model is internally inconsistent, and that inconsistency will surface as an argument between two teams.</li>
+          <li><strong>A summary must agree with its detail.</strong> An aggregate that disagrees with the fact table it summarises is a second source of truth, which is worse than having no summary at all, because both numbers are now defensible.</li>
+          <li><strong>Broken lookups must stay rare.</strong> Failed joins are made countable rather than invisible, and this fires if their share climbs past a small threshold. Silent row loss is the failure that makes two correct reports disagree.</li>
+          <li><strong>Joining payments must not change revenue.</strong> A guard against the classic double-counting mistake, expressed as a test instead of as a warning in a comment nobody reads.</li>
+        </ul>
+        <p>Notice what they have in common: each one is a sentence a business person can read, agree with, and be accountable for. That is the practical test of whether something is a meaning assertion. If a stakeholder cannot understand the claim, they cannot own it, and a claim nobody owns will not survive its first false alarm.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3: BLOCK VS WARN ============ -->
+  <section class="section" id="block-or-warn">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · the decision you will actually be asked to make</span>
+      <h2>What should block a build, and what should only warn <span class="tag concept">5 min live</span></h2>
+    </div>
+    <p class="lede">Not every failing test should stop the world. Deciding which ones do is a governance call rather than a technical one, and it is the call most likely to land on your desk. There is one question that settles almost every case, and it is deliberately unsentimental.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 356" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The 3am test: would anybody act on this failure tonight? Yes means block the build, no means warn or delete">
+        <style>
+          .btT { font: 700 12.5px Inter, sans-serif; fill: #FFFFFF; }
+          .btQ { font: 700 12.5px Inter, sans-serif; fill: #22222A; }
+          .btC { font: 400 11.5px Inter, sans-serif; fill: #6B6B78; }
+          .btH { font: 700 12px Inter, sans-serif; fill: #22222A; }
+          .btN { font: 600 11.5px Inter, sans-serif; fill: #0E2C26; }
+          .btMid { text-anchor: middle; }
+          .btArr { stroke: #F1855F; stroke-width: 2.5; fill: none; marker-end: url(#btAh); }
+        </style>
+        <defs>
+          <marker id="btAh" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#F1855F"/>
+          </marker>
+        </defs>
+
+        <rect x="290" y="22" width="300" height="40" rx="8" fill="#2B2B33"/>
+        <text class="btT btMid" x="440" y="47">A test fails at 3am</text>
+
+        <rect x="250" y="80" width="380" height="38" rx="8" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="btQ btMid" x="440" y="104">Would anybody act on it tonight?</text>
+
+        <path class="btArr" d="M370,120 L232,152"/>
+        <path class="btArr" d="M510,120 L648,152"/>
+
+        <rect x="26" y="158" width="390" height="40" rx="8" fill="#3F7F72"/>
+        <text class="btT" x="44" y="184">Yes · make it block the build</text>
+        <rect x="26" y="198" width="390" height="76" rx="8" fill="#E8F3F0" stroke="#3F7F72"/>
+        <text class="btC" x="44" y="222">Nothing downstream is rebuilt, so dashboards</text>
+        <text class="btC" x="44" y="242">keep yesterday's numbers rather than being</text>
+        <text class="btC" x="44" y="262">refreshed from something known to be wrong.</text>
+
+        <rect x="464" y="158" width="390" height="40" rx="8" fill="#D94E24"/>
+        <text class="btT" x="482" y="184">No · warn, or delete it</text>
+        <rect x="464" y="198" width="390" height="76" rx="8" fill="#FAF8F7" stroke="#E6E4E9"/>
+        <text class="btC" x="482" y="222">A failure nobody will act on is noise, and a</text>
+        <text class="btC" x="482" y="242">suite that cries wolf gets skipped. A skipped</text>
+        <text class="btC" x="482" y="262">suite is worse than no suite at all.</text>
+
+        <rect x="26" y="292" width="828" height="52" rx="9" fill="#FDF0EB" stroke="#F6C3B0"/>
+        <text class="btH" x="46" y="316">Why "worse than no suite"</text>
+        <text class="btN" x="46" y="336">No suite means you know you are exposed. An ignored suite means you believe you are covered.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the 3am test, and why noise is the real enemy</figcaption>
+    </figure>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The 3am test, and the case for deleting tests<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The question is: <strong>if this test fails at 3am, would anybody act on it?</strong> If yes, it should stop the build, and stopping the build is a genuinely valuable behaviour. Nothing downstream of the failure gets rebuilt, so the dashboards keep yesterday's numbers instead of being refreshed from something known to be wrong. In a hand-written estate the equivalent script would have carried on regardless, because a script runs steps and has no idea what depends on what.</p>
+        <p>If nobody would act on it, the test is noise, and this is where leaders reliably get the decision backwards. The instinct is that more alerts mean more safety. In practice a suite that cries wolf gets skipped, and once your team has learned to click through failures they will click through the important one too. <strong>A skipped suite is worse than no suite, because no suite means you know you are exposed, while an ignored suite means you believe you are covered.</strong></p>
+        <p>So the honest options for a test nobody would act on are: delete it, or make it a warning that reports without failing the build. Warnings are the right home for things worth watching and not worth waking anybody for. What is not an option is leaving it as a blocking failure that everybody has learned to override, which is the state a great many real suites are in.</p>
+        <div class="callout tip">
+          <strong>The number to ask for</strong>
+          Ask how many test failures your team saw last month and how many led to an action. If it is thirty failures and two actions, you do not have a testing problem, you have a noise problem, and the fix is deletion rather than investment.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Reading a test suite as a leader, without reading SQL<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Three questions, all answerable by your team in a few minutes, none requiring you to look at any code. Together they tell you more about your exposure than any dashboard about data quality.</p>
+        <ul>
+          <li><strong>How many of our models have zero tests, and which ones?</strong> A count and a list. Then ask which of those models a reported number depends on. That intersection is your unhedged exposure, stated as a list of names rather than a feeling, and it is usually shorter and more fixable than people expect.</li>
+          <li><strong>Which of the numbers we report has a reconciliation assertion behind it?</strong> Ask about your three most-quoted figures by name. This is the question that separates a suite protecting against shape from a suite protecting against meaning, and the answer for most organisations is none of them.</li>
+          <li><strong>When did the suite last fail, and what happened next?</strong> The best question of the three, because it tests the whole system rather than the artifact. A good answer names a date, a failure, a person and an action. "It does not really fail" means it is not being run, or it is only testing things that cannot break. "It fails most days" means it is being ignored.</li>
+        </ul>
+        <p>Notice that all three are questions about your organisation rather than about the technology, which is why they keep working when the tooling changes.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DISCUSSION EXERCISE ============ -->
+  <section class="section" id="discussion">
+    <div class="section-kicker">
+      <span class="klabel">Discussion · 12 min · everybody talks</span>
+      <h2>The trust-budget audit <span class="tag demo">★ run this with your own team</span></h2>
+    </div>
+    <p class="lede">Two exercises. The first builds the case for the tests you are missing, using your own reported numbers rather than an argument about best practice. The second finds the noise you are already paying for, and it is the one that saves money rather than spending it.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Name your three numbers first, before anybody talks about tests.</strong> The three figures your organisation actually acts on. Do this out loud, and be prepared for the list itself to be contested.</p></div>
+      <div class="step"><p><strong>Then ask, for each one, what would fail if it silently moved by 3%.</strong> Three percent because it is too small to notice by eye and large enough to change a decision.</p></div>
+      <div class="step"><p><strong>Now turn it around and hunt for noise.</strong> Which current failures would your team skip at 3am? Those are candidates for deletion or downgrade this week.</p></div>
+      <div class="step"><p><strong>Leave with two lists and one name.</strong> The assertions to write, the alerts to remove, and the person who will answer the phone when a reconciliation fires.</p></div>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Exercise 1 · The three-numbers question<span class="mini">6 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"Name the three numbers this company actually acts on. For each one, tell me which test would fail if it silently moved by three percent, and who we would call when it did."</p>
+        <h4>What a good answer sounds like</h4>
+        <p>For at least one of the three, a real assertion and a real name: "settled revenue reconciles to the payments system every build, and if it breaks we call Dana in finance." That is a governed number. For the other two, the good answer is a straight admission: "nothing would fail, we would find out from the monthly review." Written down beside the number's name, that admission is the most persuasive funding case you will make this quarter, because it is specific, it is about a number your board sees, and nobody has to be blamed for it.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>Shape tests offered as if they were meaning tests. "We test that the revenue column is never null" sounds like an answer and is not one: a 3% error has no nulls in it. Push once, gently: "would that test fail if the number were wrong but well-formed?" The second failure mode is a technical owner given for a business claim. If the answer to "who would we call" is the data team, the assertion has no business owner, and it will not survive its first false alarm.</p>
+        <div class="callout tip">
+          <strong>Why 3% is the right number to say</strong>
+          It is small enough that nobody will spot it by eye on a chart and large enough to change a decision or move a bonus. Ask about a 50% error and everybody is confident it would be caught, which is true and useless.
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Exercise 2 · The noise audit<span class="mini">6 min · run it next week</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <h4>The prompt, word for word</h4>
+        <p>"How many test or data-quality failures did we see last month, and how many led somebody to do something? Then: which of our current alerts would you personally skip at 3am?"</p>
+        <h4>What a good answer sounds like</h4>
+        <p>Two numbers and an honest list. "About twenty-five failures, three of them mattered, and I would skip the freshness alert on the marketing extract every single time because it is late twice a week and nobody minds." That is a team that can be trusted with its own suite, and the right response is to let them delete or downgrade those alerts this week rather than to ask for a plan. Deleting a noisy test is a real improvement to your protection, and it should feel like one.</p>
+        <h4>The failure mode to listen for</h4>
+        <p>Reluctance to delete anything, usually phrased as caution: "I would not want to remove a check." That instinct is exactly backwards and it is worth naming in the room, because the risk is not the alert you removed deliberately, it is the alert your team learned to ignore silently. Also listen for the failure count being unknown, which means nobody is watching whether the suite works, and that is a bigger finding than any individual test.</p>
+        <div class="callout tip">
+          <strong>The rule to leave in the room</strong>
+          Every test either blocks the build because somebody would act on it, or reports as a warning, or does not exist. There is no fourth category, and "blocking failure everybody overrides" is the fourth category pretending to be the first.
+        </div>
+      </div>
+    </details>
+
+    <div class="callout example">
+      <span class="ex-pill">Real world</span>
+      <p><strong>The measurement on this project is the most useful single slide in this whole track, and it is worth reproducing exactly.</strong> Six realistic breakages, applied to a working 23-model warehouse as real damage, with the suite re-run at three levels. No tests: 0 of 6 caught. Cheap generic tests: 4 of 6. Generic plus five hand-written assertions: 6 of 6.</p>
+      <p>The middle column is the lesson. Teams add generic tests quickly, because they are one line and they feel like progress, and they genuinely do catch the shape errors: duplicates, missing keys, broken lookups, undeclared values. Then a definition changes without a rename, or somebody backfills a source after the nightly build, and every one of those 95 tests passes while the number is wrong. Those two breakages are not exotic. They are the two most common ways a mature warehouse loses trust, precisely because they only happen to estates healthy enough to still be changing.</p>
+      <p><strong>And notice what "no tests" really describes.</strong> The hand-written version of this warehouse has 27 checks written into a Python validator, and they are competent checks. It scores zero because the validator is a separate program somebody has to remember to run, and under deadline pressure nobody does. The 100 tests in the dbt version run on every build, in 1.22 seconds, whether anybody feels like it or not. That is the difference you are funding, and it is a process property rather than a clever one.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS TO ASK ============ -->
+  <section class="section" id="questions">
+    <div class="section-kicker">
+      <span class="klabel">Take this away</span>
+      <h2>Questions to ask your data team <span class="tag concept">7 questions</span></h2>
+    </div>
+    <p class="lede">None of these requires you to read SQL, and all of them are answerable by a team that has the situation under control. The last three are the ones to repeat every quarter.</p>
+
+    <table class="clean">
+      <thead><tr><th>Ask this</th><th>Why it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>"How many of our models have zero tests, and which reported numbers depend on those models?"</td>
+          <td>Turns coverage into an exposure list rather than a percentage. The intersection of untested models and reported numbers is your unhedged position, stated as names you can act on rather than a proportion you cannot.</td>
+        </tr>
+        <tr>
+          <td>"Which of our three most-quoted numbers has an assertion that it still reconciles to the source system?"</td>
+          <td>The single highest-value question on this page. It separates a suite that protects shape from one that protects meaning, and for most organisations the honest answer is none of them, which is the funding case in one sentence.</td>
+        </tr>
+        <tr>
+          <td>"When did the suite last fail, and what happened in the next hour?"</td>
+          <td>Tests the whole system rather than the artifact. A good answer has a date, a failure, a person and an action. "It does not really fail" means it is not running or not testing anything that can break.</td>
+        </tr>
+        <tr>
+          <td>"How many failures did we see last month, and how many led to somebody doing something?"</td>
+          <td>Measures noise, which is the failure mode nobody reports upward. A large gap between the two numbers means your team has learned to click through failures, and they will click through the important one too.</td>
+        </tr>
+        <tr>
+          <td>"For our most important model, what is the failure that would embarrass us most, and is there a test for exactly that?"</td>
+          <td>The right substitute for a coverage target. It is a judgement question that cannot be satisfied by adding cheap tests, and asking it per model produces a real backlog instead of a number.</td>
+        </tr>
+        <tr>
+          <td>"Which of our tests would you delete this week if I told you deleting one was a win?"</td>
+          <td>Gives explicit permission, which is what the answer needs. Teams keep noisy tests out of caution, so the useful move is to make removal a legitimate outcome rather than an admission of a mistake.</td>
+        </tr>
+        <tr>
+          <td>"For each reconciliation test we have, name the business person we call when it fires."</td>
+          <td>Closes the governance gap directly. A reconciliation assertion with no named business owner will fire once, get no answer, and be disabled within a fortnight, and that is a governance failure rather than an engineering one.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session a4 <span class="tag exercise">◐ 30-40 min total, all conversations</span></h2>
+    </div>
+    <ul>
+      <li>Write down your three most-acted-on numbers and, beside each, whether a reconciliation assertion exists. Take the list to your next leadership meeting. It is a one-page governance document and it took ten minutes.</li>
+      <li>Ask for the count of models with zero tests, and for the subset of those that a reported figure depends on. Do not ask for a coverage percentage, which is satisfiable without improving anything.</li>
+      <li>Run the noise audit and give your team explicit permission to delete or downgrade three alerts this week. Then check in a month whether the remaining failures are being acted on.</li>
+      <li>For your single most important number, name the business person who will answer the phone when a reconciliation assertion fires, and tell them. If you cannot name one, you have found the real gap, and it is not a technical one.</li>
+      <li>Bring the count of models and the count of editors to <a href="a4-buy-vs-build.html">a4</a>, along with your current test position. The buy-versus-build decision, including Core versus Cloud, turns on all three.</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Source material</span>
+      <h2>Sources covered</h2>
+    </div>
+    <p class="lede">Full source map in <code>materials/official-course-map.md</code>. This page covers:</p>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">The dbt documentation on tests - generic and singular tests, custom generic tests, severity as a decision</span><span class="note">Parts 1-3 · read as a governance artifact with no syntax; builder <a href="b7-break-a-model.html">b7</a> runs the suite and applies the six breakages</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Data-quality practice - reconciliation, referential integrity, additivity, grain assertions</span><span class="note">Part 2 · the five assertions in plain English, each one a real incident class</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Software-engineering practice applied to SQL - what should block a merge</span><span class="note">Part 3 decides what blocks · <a href="a2-models-as-code.html">a2</a> covers the practices, builder <a href="b9-contracts-docs-ci.html">b9</a> wires the CI that enforces them</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The dbt documentation on model contracts - a declared interface as a second limit on blast radius</span><span class="note">Named as complementary to tests only · builder <a href="b9-contracts-docs-ci.html">b9</a> builds them, leader <a href="a5-team-shape.html">a5</a> owns who signs them</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Kimball &amp; Ross - grain and additivity, which the assertions defend</span><span class="note">The model itself is <a href="https://phoebefu6.github.io/learn-data-modeling-with-phoebe/">learn-data-modeling</a>; this page only tests it</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Observability, alerting and on-call routing for failures</span><span class="note">Out of scope by design · that is <a href="https://phoebefu6.github.io/learn-dataops-with-phoebe/">learn-dataops</a>; this page decides only what deserves to block a build</span></div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions before you go 🎯 <span class="tag exercise">◐ 90 seconds</span></h2>
+    </div>
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Your team reports 96% test coverage and every build is green. A monthly figure has been 3% too high for six weeks. What is the most likely explanation?</p>
+      <button class="qopt" type="button">A · A test was disabled, so the coverage number is misleading</button>
+      <button class="qopt" type="button">B · The suite is almost entirely shape tests, and a meaning error has a perfect shape, so nothing could have fired</button>
+      <button class="qopt" type="button">C · The build is not actually running the tests</button>
+      <p class="qwhy">A definition that moved without a rename produces no duplicates, no missing keys, no orphans and no undeclared values. Every cheap generic test passes correctly. Only an assertion about meaning, such as a reconciliation to the source, catches it, which is why five hand-written checks took this project from 4 of 6 to 6 of 6.</p>
+    </div>
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · A test has failed most mornings for three months. The team overrides it each time and nothing bad has happened. What should you do?</p>
+      <button class="qopt" type="button">A · Leave it, since a failing test is still information</button>
+      <button class="qopt" type="button">B · Ask the team to fix the underlying data so it stops failing</button>
+      <button class="qopt" type="button">C · Have it deleted or downgraded to a warning this week, because a suite that cries wolf gets skipped and an ignored suite is worse than no suite</button>
+      <p class="qwhy">Once your team has learned to click through failures, they will click through the important one too. No suite means you know you are exposed; an ignored suite means you believe you are covered. Deleting a noisy test is a genuine improvement in protection and should be treated as a win, not an admission.</p>
+    </div>
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Your team proposes a reconciliation assertion on reported revenue. What is the one thing you must supply for it to survive?</p>
+      <button class="qopt" type="button">A · A named business owner who will answer the phone and decide what happens when it fires</button>
+      <button class="qopt" type="button">B · Approval for the engineering time to write it</button>
+      <button class="qopt" type="button">C · A tolerance threshold agreed with the vendor</button>
+      <p class="qwhy">Whether to fix the pipeline, restate the number or accept a difference is a business decision, not an engineering one. A reconciliation test with no named owner fires once, gets investigated by whoever is on duty, gets no answer, and is disabled within a fortnight. That is a governance failure, and it is the leader's to prevent.</p>
+    </div>
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Leader session 3 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The suite is a governance artifact</b><span>A register of what your organisation has committed to being true, falsifiable and re-checked on every build.</span></div>
+      <div class="cheat-item"><b>The measured answer</b><span>Six realistic breakages on this project: 0 of 6 caught with no tests, 4 of 6 with cheap generic tests, 6 of 6 with five assertions as well.</span></div>
+      <div class="cheat-item"><b>Shape errors</b><span>Duplicates, missing keys, broken lookups, undeclared values. One-line tests catch them. 95 of the 100 here.</span></div>
+      <div class="cheat-item"><b>Meaning errors</b><span>A definition moved without a rename; a source edited after the build. Perfect shape, wrong number. Only an assertion catches them.</span></div>
+      <div class="cheat-item"><b>Who owns which</b><span>The data team owns shape. The business owns meaning. A reconciliation needs a business owner who answers the phone.</span></div>
+      <div class="cheat-item"><b>The 3am test</b><span>Would anybody act on this failure tonight? If yes, block the build. If no, warn or delete it.</span></div>
+      <div class="cheat-item"><b>Noise is the enemy</b><span>A suite that cries wolf gets skipped, and a skipped suite is worse than no suite: you believe you are covered.</span></div>
+      <div class="cheat-item"><b>Read it without SQL</b><span>Count models with zero tests, ask which reported number has a reconciliation, ask when the suite last failed and what happened next. Next: <a href="a4-buy-vs-build.html">a4</a>, what to buy.</span></div>
+    </div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>Leader session 3 of 6 · learn-analytics-engineering-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="a2-models-as-code.html">← Previous: Models as code</a> &nbsp;·&nbsp; <a href="a4-buy-vs-build.html">Next: Buy vs build the transformation layer →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=2"></script>
+</body>
+</html>
