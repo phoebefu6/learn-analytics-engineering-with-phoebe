@@ -156,7 +156,32 @@
     <p class="lede">Below is this project's actual dependency graph, read from <code>target/manifest.json</code> after a real build. Click any node: you get its upstream (highlighted pale), its downstream (highlighted red), the impact set spelled out, and both versions of its SQL - what you write, and what dbt compiled.</p>
 
     <div class="steps">
-      <div class="step"><p><strong>Start where it opens,</strong> on <code>fct_order_items</code>. Two marts depend on it; fifteen nodes feed it. That asymmetry is what a well-layered project looks like.</p></div>
+      <div class="step"><p><strong>Start where it opens,</strong> on <code>fct_order_items</code>. Two marts depend on it; fifteen nodes feed it. That asymmetry is what a well-layered project looks like.</p>
+<figure class="zoomable">
+  <svg viewBox="0 0 880 164" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A bar chart showing the dependency graph around the fct_order_items model: fifteen nodes feed it upstream while only two marts depend on it downstream, the asymmetry of a well-layered dbt project.">
+    <style>
+      .dsT { font: 700 13px Inter, sans-serif; fill: #22222A; }
+      .dsL { font: 600 11px Inter, sans-serif; fill: #22222A; }
+      .dsVi { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+      .dsVout { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+      .dsN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="164" fill="#FAF8F7"/>
+    <text class="dsT" x="40" y="26">The graph around fct_order_items</text>
+
+    <text class="dsL" x="240" y="65" text-anchor="end">Feeds it (upstream)</text>
+    <rect x="260" y="48" width="480" height="26" rx="5" fill="#D94E24"/>
+    <text class="dsVi" x="272" y="65">15 nodes</text>
+
+    <text class="dsL" x="240" y="105" text-anchor="end">Depends on it (marts)</text>
+    <rect x="260" y="88" width="64" height="26" rx="5" fill="#3F7F72"/>
+    <text class="dsVout" x="334" y="105">2 marts</text>
+
+    <text class="dsN" x="40" y="136">A well-layered project looks like this: many nodes feed a model, few depend on it directly.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - many nodes feed it, few nodes depend on it directly</figcaption>
+</figure>
+</div>
       <div class="step"><p><strong>Now click <code>stg_bazaar__orders</code>.</strong> Seven nodes downstream. This is the model you cannot casually rename, and the graph told you so without anybody keeping a list.</p></div>
       <div class="step"><p><strong>Click a source.</strong> Everything in the project is downstream of some source, which is why a source schema change is the most expensive change there is.</p></div>
       <div class="step"><p><strong>Compare the two SQL blocks</strong> on any model. The Jinja on top, the compiled query underneath. That is the whole of what dbt did.</p></div>
@@ -167,6 +192,32 @@
     <div class="callout example">
       <span class="ex-pill">Real world</span>
       <p><strong>The graph is the reason a rename becomes a conversation.</strong> In a hand-written estate, renaming a column is a two-minute edit followed by three weeks of breakage discovered one dashboard at a time. Here, <code>dbt build --select stg_bazaar__orders+</code> tells you in advance that seven nodes and their tests are in the blast radius - and CI runs exactly those on the pull request. Same rename, same risk, completely different amount of surprise.</p>
+<figure class="zoomable">
+  <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A before and after contrasting a column rename in a hand-written warehouse, discovered as three weeks of surprise breakage one dashboard at a time, with the same rename in a dbt graph, where selecting stg_bazaar__orders plus shows seven nodes in the blast radius in advance so CI tests exactly those.">
+    <style>
+      .brH { font: 700 13px Inter, sans-serif; }
+      .brB { font: 400 12px Inter, sans-serif; fill: #22222A; }
+      .brN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="300" fill="#FAF8F7"/>
+
+    <rect x="40" y="50" width="390" height="180" rx="12" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+    <text class="brH" x="58" y="84" fill="#991B1B">✗ Hand-written rename</text>
+    <text class="brB" x="58" y="114">a two-minute edit</text>
+    <text class="brB" x="58" y="134">three weeks of surprise breakage</text>
+    <text class="brB" x="58" y="154">found one dashboard at a time</text>
+
+    <rect x="450" y="50" width="390" height="180" rx="12" fill="#FDF0EB" stroke="#D94E24" stroke-width="1.5"/>
+    <text class="brH" x="468" y="84" fill="#D94E24">✓ dbt graph rename</text>
+    <text class="brB" x="468" y="114">select stg_bazaar__orders+</text>
+    <text class="brB" x="468" y="134">7 nodes in the blast radius, known</text>
+    <text class="brB" x="468" y="154">CI tests exactly those nodes</text>
+
+    <text class="brN" x="40" y="276">Same rename, same underlying risk - completely different amount of surprise for the team.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - same rename, same risk, no surprise</figcaption>
+</figure>
+
     </div>
   </section>
 

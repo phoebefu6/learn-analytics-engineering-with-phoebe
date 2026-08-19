@@ -172,7 +172,36 @@
       </p>
     </div>
 
-    <table class="clean">
+    
+<figure class="zoomable">
+  <svg viewBox="0 0 880 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A bar chart showing the scale of one real dbt build on the Bazaar project: 100 data tests, 23 models and 8 sources, all built and tested in a single run.">
+    <style>
+      .bsT { font: 700 13px Inter, sans-serif; fill: #22222A; }
+      .bsL { font: 600 11px Inter, sans-serif; fill: #22222A; }
+      .bsVi { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+      .bsVout { font: 700 12px Inter, sans-serif; fill: #0E2C26; }
+      .bsN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="200" fill="#FAF8F7"/>
+    <text class="bsT" x="40" y="26">One real build, at a glance</text>
+
+    <text class="bsL" x="240" y="65" text-anchor="end">Data tests</text>
+    <rect x="260" y="48" width="480" height="26" rx="5" fill="#D94E24"/>
+    <text class="bsVi" x="272" y="65">100 tests</text>
+
+    <text class="bsL" x="240" y="105" text-anchor="end">Models</text>
+    <rect x="260" y="88" width="110" height="26" rx="5" fill="#D94E24"/>
+    <text class="bsVi" x="272" y="105">23 models</text>
+
+    <text class="bsL" x="240" y="145" text-anchor="end">Sources</text>
+    <rect x="260" y="128" width="38" height="26" rx="5" fill="#3F7F72"/>
+    <text class="bsVout" x="308" y="145">8 sources</text>
+
+    <text class="bsN" x="40" y="176">Found 23 models, 100 data tests, 8 sources - the same build that runs the labs below.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - one build, 23 models and 100 tests, every time</figcaption>
+</figure>
+<table class="clean">
       <thead><tr><th>Line</th><th>What it tells you</th></tr></thead>
       <tbody>
         <tr><td><code>Found 23 models, 100 data tests...</code></td><td>parsing worked. If a model has a syntax error in its Jinja, you never get past this line</td></tr>
@@ -189,6 +218,32 @@
       <div class="body">
         <p>When a test fails, dbt does not just report it - it refuses to build anything downstream of the broken model. Your marts keep yesterday's data rather than being rebuilt from something known to be wrong.</p>
         <p>Compare with the hand-written version of this warehouse: the transform script ran top to bottom, and if the star came out wrong the marts were rebuilt from it anyway, because a script has no idea what depends on what. Then the dashboards refreshed. The validator would have caught it - if someone had run the validator.</p>
+<figure class="zoomable">
+  <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A before and after contrasting a failed hand-written transform script, which keeps running and rebuilds marts from wrong data so dashboards refresh with bad numbers, with a dbt build, where a failing test skips every downstream model so marts keep yesterday's good data instead.">
+    <style>
+      .skH { font: 700 13px Inter, sans-serif; }
+      .skB { font: 400 12px Inter, sans-serif; fill: #22222A; }
+      .skN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="300" fill="#FAF8F7"/>
+
+    <rect x="40" y="50" width="390" height="180" rx="12" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+    <text class="skH" x="58" y="84" fill="#991B1B">✗ Script keeps going</text>
+    <text class="skB" x="58" y="114">star comes out wrong</text>
+    <text class="skB" x="58" y="134">marts rebuilt from it anyway</text>
+    <text class="skB" x="58" y="154">dashboards refresh with bad data</text>
+
+    <rect x="450" y="50" width="390" height="180" rx="12" fill="#FDF0EB" stroke="#D94E24" stroke-width="1.5"/>
+    <text class="skH" x="468" y="84" fill="#D94E24">✓ dbt SKIPs downstream</text>
+    <text class="skB" x="468" y="114">a test fails on one model</text>
+    <text class="skB" x="468" y="134">downstream builds are skipped</text>
+    <text class="skB" x="468" y="154">marts keep yesterday's good data</text>
+
+    <text class="skN" x="40" y="276">A script runs steps and cannot stop itself; a graph knows what to stop before it builds it wrong.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - a script runs steps; a graph knows what to stop</figcaption>
+</figure>
+
         <div class="callout tip">
           <strong>The one-line version</strong>
           A script runs steps. dbt runs a graph, and a graph knows what to stop.

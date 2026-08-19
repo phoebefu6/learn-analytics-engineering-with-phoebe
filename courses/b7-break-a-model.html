@@ -143,7 +143,33 @@
     <div class="steps">
       <div class="step"><p><strong>Start with "No tests".</strong> Break something, watch the build succeed anyway, and read what the numbers did. This is the state a hand-written SQL estate is in.</p></div>
       <div class="step"><p><strong>Switch to generic tests.</strong> Re-run the same breakage. Read which test fired and how many rows offended it - that row count is what a reviewer would see in CI.</p></div>
-      <div class="step"><p><strong>Now try "A metric definition changes silently" with generic tests on.</strong> Everything passes. The revenue number is 3.5% higher and the shape is perfect. Then add the singular tests.</p></div>
+      <div class="step"><p><strong>Now try "A metric definition changes silently" with generic tests on.</strong> Everything passes. The revenue number is 3.5% higher and the shape is perfect. Then add the singular tests.</p>
+<figure class="zoomable">
+  <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A before and after showing a silent metric definition change in the Bazaar dbt project: with only generic tests on, revenue reads 3.5 percent high and every test passes, while adding the singular test assert_star_reconciles_to_source catches the mismatch and fails the build before it ships.">
+    <style>
+      .rcH { font: 700 13px Inter, sans-serif; }
+      .rcB { font: 400 12px Inter, sans-serif; fill: #22222A; }
+      .rcN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="300" fill="#FAF8F7"/>
+
+    <rect x="40" y="50" width="390" height="180" rx="12" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+    <text class="rcH" x="58" y="84" fill="#991B1B">✗ Generic tests only</text>
+    <text class="rcB" x="58" y="114">revenue reads 3.5% high</text>
+    <text class="rcB" x="58" y="134">the shape is perfect</text>
+    <text class="rcB" x="58" y="154">every generic test passes</text>
+
+    <rect x="450" y="50" width="390" height="180" rx="12" fill="#FDF0EB" stroke="#D94E24" stroke-width="1.5"/>
+    <text class="rcH" x="468" y="84" fill="#D94E24">✓ Add the singular test</text>
+    <text class="rcB" x="468" y="114">assert_star_reconciles_to_source</text>
+    <text class="rcB" x="468" y="134">checks the fact against the source</text>
+    <text class="rcB" x="468" y="154">mismatch found, build fails</text>
+
+    <text class="rcN" x="40" y="276">A definition drift is not a shape error - it takes a test somebody sat down and thought about.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - the shape can be perfect while the number is still wrong</figcaption>
+</figure>
+</div>
       <div class="step"><p><strong>Finish with "Score all 6 breakages"</strong> for the full matrix: 0 of 6, then 4 of 6, then 6 of 6.</p></div>
     </div>
 
@@ -152,6 +178,35 @@
     <div class="callout example">
       <span class="ex-pill">Real world</span>
       <p><strong>The middle column of that scorecard is the whole lesson.</strong> Teams add generic tests quickly, because they are one line and feel like progress - and they genuinely catch the shape errors. Then a definition changes without a rename, or somebody backfills a source after the nightly build, and every test passes while the number is wrong. Those two are not edge cases; they are the two most common ways a mature warehouse loses trust. They need an assertion somebody sat down and thought about, which is what the five files in <code>tests/</code> are.</p>
+<figure class="zoomable">
+  <svg viewBox="0 0 880 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A bar chart showing breakages caught out of six in the break-a-model lab: zero of six with no tests, four of six with generic tests only, and six of six once singular tests are added alongside them.">
+    <style>
+      .smT { font: 700 13px Inter, sans-serif; fill: #22222A; }
+      .smL { font: 600 11px Inter, sans-serif; fill: #22222A; }
+      .smVi { font: 700 12px Inter, sans-serif; fill: #FFFFFF; }
+      .smVout { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+      .smN { font: 400 12px Inter, sans-serif; fill: #6B6B78; }
+    </style>
+    <rect x="0" y="0" width="880" height="200" fill="#FAF8F7"/>
+    <text class="smT" x="40" y="26">Six scripted breakages, three levels of safeguard</text>
+
+    <text class="smL" x="240" y="65" text-anchor="end">No tests</text>
+    <rect x="260" y="48" width="6" height="26" fill="#991B1B"/>
+    <text class="smVout" x="278" y="65">0 of 6 caught</text>
+
+    <text class="smL" x="240" y="105" text-anchor="end">Generic tests only</text>
+    <rect x="260" y="88" width="320" height="26" rx="5" fill="#F1855F"/>
+    <text class="smVi" x="272" y="105">4 of 6 caught</text>
+
+    <text class="smL" x="240" y="145" text-anchor="end">Generic + singular tests</text>
+    <rect x="260" y="128" width="480" height="26" rx="5" fill="#D94E24"/>
+    <text class="smVi" x="272" y="145">6 of 6 caught</text>
+
+    <text class="smN" x="40" y="176">Generic tests catch shape errors; the last two breakages need a singular test somebody wrote on purpose.</text>
+  </svg>
+  <figcaption>🔍 Click to zoom - generic tests get you to 4 of 6, singular tests close the rest</figcaption>
+</figure>
+
     </div>
   </section>
 
